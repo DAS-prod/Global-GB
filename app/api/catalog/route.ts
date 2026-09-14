@@ -1,73 +1,58 @@
 import { NextResponse } from "next/server";
-import type {
-  Bundle,
-  CategoryKey,
-} from "@/data/catalog";
+import type { Bundle, CategoryKey } from "@/data/catalog";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
+export const runtime = "nodejs";
 
-function parseCsv(
-  text: string
-): Record<string, string>[] {
+/* =========================================================
+   CSV PARSER
+========================================================= */
+
+function parseCsv(text: string): Record<string, string>[] {
   const rows: string[][] = [];
 
   let row: string[] = [];
   let field = "";
   let quoted = false;
 
-  for (
-    let i = 0;
-    i < text.length;
-    i += 1
-  ) {
-    const ch = text[i];
+  for (let i = 0; i < text.length; i += 1) {
+    const char = text[i];
     const next = text[i + 1];
 
-    if (
-      ch === '"' &&
-      quoted &&
-      next === '"'
-    ) {
+    // Escaped quote inside quoted value
+    if (char === '"' && quoted && next === '"') {
       field += '"';
       i += 1;
       continue;
     }
 
-    if (ch === '"') {
+    // Start/end quoted value
+    if (char === '"') {
       quoted = !quoted;
       continue;
     }
 
-    if (
-      ch === "," &&
-      !quoted
-    ) {
+    // New column
+    if (char === "," && !quoted) {
       row.push(field);
       field = "";
       continue;
     }
 
+    // New row
     if (
-      (ch === "\n" ||
-        ch === "\r") &&
+      (char === "\n" || char === "\r") &&
       !quoted
     ) {
-      if (
-        ch === "\r" &&
-        next === "\n"
-      ) {
+      if (char === "\r" && next === "\n") {
         i += 1;
       }
 
       row.push(field);
       field = "";
 
-      if (
-        row.some((value) =>
-          value.trim()
-        )
-      ) {
+      if (row.some((value) => value.trim() !== "")) {
         rows.push(row);
       }
 
@@ -75,16 +60,13 @@ function parseCsv(
       continue;
     }
 
-    field += ch;
+    field += char;
   }
 
+  // Final field / final row
   row.push(field);
 
-  if (
-    row.some((value) =>
-      value.trim()
-    )
-  ) {
+  if (row.some((value) => value.trim() !== "")) {
     rows.push(row);
   }
 
@@ -92,54 +74,50 @@ function parseCsv(
     return [];
   }
 
-  const headers =
-    rows[0].map((header) =>
-      header
-        .trim()
-        .toLowerCase()
-    );
+  // Normalize headers
+  const headers = rows[0].map((header) =>
+    header
+      .replace(/^\uFEFF/, "")
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, "_")
+  );
 
-  return rows
-    .slice(1)
-    .map((cells) =>
-      Object.fromEntries(
-        headers.map(
-          (header, index) => [
-            header,
-            (
-              cells[index] || ""
-            ).trim(),
-          ]
-        )
-      )
-    );
+  return rows.slice(1).map((cells) => {
+    const object: Record<string, string> = {};
+
+    headers.forEach((header, index) => {
+      object[header] = (cells[index] || "").trim();
+    });
+
+    return object;
+  });
 }
+
+/* =========================================================
+   CATEGORY NORMALIZER
+========================================================= */
 
 function getCategoryKey(
   value: string
 ): CategoryKey | null {
+  if (!value) {
+    return null;
+  }
+
   const normalized = value
     .toLowerCase()
-    .replace(
-      /[^a-z0-9]/g,
-      ""
-    );
+    .replace(/[^a-z0-9]/g, "");
 
-  if (
-    normalized.includes("pickle")
-  ) {
+  if (normalized.includes("pickle")) {
     return "pickles";
   }
 
-  if (
-    normalized.includes("sweet")
-  ) {
+  if (normalized.includes("sweet")) {
     return "sweets";
   }
 
-  if (
-    normalized.includes("snack")
-  ) {
+  if (normalized.includes("snack")) {
     return "snacks";
   }
 
@@ -150,30 +128,35 @@ function getCategoryKey(
     return "podis";
   }
 
-  if (
-    normalized.includes("cashew")
-  ) {
+  if (normalized.includes("cashew")) {
     return "cashews";
   }
 
   if (
     normalized.includes("essential") ||
     normalized.includes("millet") ||
-    normalized.includes("oil")
+    normalized.includes("oil") ||
+    normalized.includes("ghee")
   ) {
     return "essentials";
   }
 
   if (
     normalized.includes("90") ||
-    normalized.includes("memor") ||
-    normalized.includes("nostalg")
+    normalized.includes("memory") ||
+    normalized.includes("memories") ||
+    normalized.includes("nostalgia") ||
+    normalized.includes("nostalgic")
   ) {
     return "memories";
   }
 
   return null;
 }
+
+/* =========================================================
+   TRUE / FALSE PARSER
+========================================================= */
 
 function isTruthy(
   value: string | undefined,
@@ -187,228 +170,349 @@ function isTruthy(
     return defaultValue;
   }
 
+  const normalized = value
+    .toLowerCase()
+    .trim();
+
   return ![
     "0",
     "false",
     "no",
     "inactive",
     "disabled",
-  ].includes(
-    value
-      .toLowerCase()
-      .trim()
-  );
+    "off",
+  ].includes(normalized);
 }
 
-function parseNumber(
-  value?: string
-) {
+/* =========================================================
+   NUMBER PARSER
+========================================================= */
+
+function parseNumber(value?: string) {
   if (!value) {
     return 0;
   }
 
   const cleaned = value
     .replace(/,/g, "")
-    .replace(
-      /[^\d.-]/g,
-      ""
-    );
+    .replace(/[^\d.-]/g, "");
 
-  const number =
-    Number(cleaned);
+  const number = Number(cleaned);
 
   return Number.isFinite(number)
     ? number
     : 0;
 }
 
+/* =========================================================
+   SPLIT ITEMS / TAGS
+========================================================= */
+
+function splitValues(value?: string) {
+  if (!value) {
+    return [];
+  }
+
+  return value
+    .split(/\s*[|;]\s*|\s*,\s*/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+/* =========================================================
+   API ROUTE
+========================================================= */
+
 export async function GET() {
+  /*
+   * IMPORTANT:
+   * Reads ONLY from:
+   *
+   * .env.local
+   *
+   * GLOBAL_GOOGLE_SHEET_URL=...
+   */
+
   const sheetUrl =
-    process.env
-      .GLOBAL_GOOGLE_SHEET_URL
-      ?.trim();
+    process.env["GLOBAL_GOOGLE_SHEET_URL"]?.trim();
+
+  /* ---------------------------------------------------------
+     ENV CHECK
+  --------------------------------------------------------- */
 
   if (!sheetUrl) {
+    console.error(
+      "GLOBAL_GOOGLE_SHEET_URL is missing."
+    );
+
     return NextResponse.json(
       {
         bundles: [],
-        source:
-          "not-configured",
-        refreshedAt:
-          new Date().toISOString(),
+        source: "not-configured",
+        envLoaded: false,
+        refreshedAt: new Date().toISOString(),
         error:
-          "Catalog is currently unavailable.",
+          "GLOBAL_GOOGLE_SHEET_URL is not available.",
       },
       {
         status: 503,
+        headers: {
+          "Cache-Control":
+            "no-store, no-cache, must-revalidate, max-age=0",
+        },
       }
     );
   }
 
   try {
-    const freshSheetUrl =
-      new URL(sheetUrl);
+    /* -------------------------------------------------------
+       CREATE FRESH GOOGLE SHEET REQUEST
+    ------------------------------------------------------- */
 
-    freshSheetUrl.searchParams.set(
-      "_refresh",
+    const url = new URL(sheetUrl);
+
+    // Prevent Google/Vercel browser caching
+    url.searchParams.set(
+      "_gb_refresh",
       Date.now().toString()
     );
 
-    const response =
-      await fetch(
-        freshSheetUrl.toString(),
-        {
-          cache: "no-store",
-          headers: {
-            "User-Agent":
-              "GodavariBasketGlobal/1.0",
-            "Cache-Control":
-              "no-cache",
-          },
-        }
-      );
+    console.log(
+      "Global catalog environment loaded: true"
+    );
+
+    /* -------------------------------------------------------
+       FETCH GOOGLE SHEET
+    ------------------------------------------------------- */
+
+    const response = await fetch(
+      url.toString(),
+      {
+        method: "GET",
+        cache: "no-store",
+
+        headers: {
+          "Cache-Control":
+            "no-cache, no-store, must-revalidate",
+
+          Pragma: "no-cache",
+
+          "User-Agent":
+            "GodavariBasketGlobal/1.0",
+        },
+      }
+    );
 
     if (!response.ok) {
       throw new Error(
-        `Google Sheet returned ${response.status}`
+        `Google Sheet returned HTTP ${response.status}`
       );
     }
 
-    const csv =
-      await response.text();
+    /* -------------------------------------------------------
+       READ CSV
+    ------------------------------------------------------- */
 
-    const rows =
-      parseCsv(csv);
+    const csv = await response.text();
 
-    const bundles: Bundle[] =
-      rows.flatMap(
-        (row, index) => {
-          if (
-            !isTruthy(
-              row.active,
-              true
-            )
-          ) {
-            return [];
-          }
+    if (!csv || csv.trim().length === 0) {
+      throw new Error(
+        "Google Sheet returned an empty response."
+      );
+    }
 
-          const category =
-            getCategoryKey(
-              row.category ||
-                row.parent_category ||
-                row.catalog ||
-                ""
-            );
+    /* -------------------------------------------------------
+       PARSE CSV
+    ------------------------------------------------------- */
 
-          if (!category) {
-            return [];
-          }
+    const rows = parseCsv(csv);
 
-          const name =
-            row.name ||
-            row.bundle_name ||
-            "";
-
-          const weightKg =
-            parseNumber(
-              row.weight_kg ||
-                row.weightkg ||
-                row.weight ||
-                row.kg
-            );
-
-          const priceInr =
-            parseNumber(
-              row.price_inr ||
-                row.price ||
-                row.bundle_price
-            );
-
-          if (
-            !name ||
-            weightKg <= 0
-          ) {
-            return [];
-          }
-
-          const items =
-            (
-              row.items ||
-              row.products ||
-              row.includes ||
-              row.bundle_items ||
-              ""
-            )
-              .split(
-                /\s*[|;]\s*|\s*,\s*/
-              )
-              .map((item) =>
-                item.trim()
-              )
-              .filter(Boolean);
-
-          const tags =
-            (row.tags || "")
-              .split(
-                /\s*[|;,]\s*/
-              )
-              .map((tag) =>
-                tag.trim()
-              )
-              .filter(Boolean);
-
-          const bundle: Bundle =
-            {
-              id:
-                row.id ||
-                `${category}-${index + 1}`,
-
-              category,
-
-              name,
-
-              subtitle:
-                row.subtitle ||
-                row.description ||
-                "",
-
-              weightKg,
-
-              priceInr,
-
-              image:
-                row.image ||
-                `/images/categories/${category}.webp`,
-
-              items,
-
-              tags,
-
-              popular:
-                isTruthy(
-                  row.popular,
-                  false
-                ),
-            };
-
-          return [bundle];
+    if (rows.length === 0) {
+      return NextResponse.json(
+        {
+          bundles: [],
+          source: "google-sheet",
+          envLoaded: true,
+          count: 0,
+          refreshedAt:
+            new Date().toISOString(),
+          error:
+            "The Google Sheet was loaded, but no catalog rows were found.",
+        },
+        {
+          headers: {
+            "Cache-Control":
+              "no-store, no-cache, must-revalidate, max-age=0",
+          },
         }
       );
+    }
+
+    /* -------------------------------------------------------
+       CONVERT SHEET ROWS → BUNDLES
+    ------------------------------------------------------- */
+
+    const bundles: Bundle[] = [];
+
+    rows.forEach((row, index) => {
+      /* ACTIVE */
+
+      if (!isTruthy(row.active, true)) {
+        return;
+      }
+
+      /* CATEGORY */
+
+      const category = getCategoryKey(
+        row.category ||
+          row.parent_category ||
+          row.catalog ||
+          ""
+      );
+
+      if (!category) {
+        console.warn(
+          `Skipping row ${
+            index + 2
+          }: invalid category`,
+          row.category
+        );
+
+        return;
+      }
+
+      /* NAME */
+
+      const name =
+        row.name ||
+        row.bundle_name ||
+        "";
+
+      if (!name.trim()) {
+        console.warn(
+          `Skipping row ${
+            index + 2
+          }: bundle name missing`
+        );
+
+        return;
+      }
+
+      /* WEIGHT */
+
+      const weightKg = parseNumber(
+        row.weight_kg ||
+          row.weightkg ||
+          row.weight ||
+          row.kg
+      );
+
+      if (weightKg <= 0) {
+        console.warn(
+          `Skipping row ${
+            index + 2
+          }: invalid weight`,
+          row.weight_kg
+        );
+
+        return;
+      }
+
+      /* PRICE */
+
+      const priceInr = parseNumber(
+        row.price_inr ||
+          row.price ||
+          row.bundle_price
+      );
+
+      /* ITEMS */
+
+      const items = splitValues(
+        row.items ||
+          row.products ||
+          row.includes ||
+          row.bundle_items
+      );
+
+      /* TAGS */
+
+      const tags = splitValues(
+        row.tags
+      );
+
+      /* IMAGE */
+
+      const image =
+        row.image?.trim() ||
+        `/images/categories/${category}.webp`;
+
+      /* CREATE BUNDLE */
+
+      const bundle: Bundle = {
+        id:
+          row.id?.trim() ||
+          `${category}-${index + 1}`,
+
+        category,
+
+        name: name.trim(),
+
+        subtitle:
+          (
+            row.subtitle ||
+            row.description ||
+            ""
+          ).trim(),
+
+        weightKg,
+
+        priceInr,
+
+        image,
+
+        items,
+
+        tags,
+
+        popular: isTruthy(
+          row.popular,
+          false
+        ),
+      };
+
+      bundles.push(bundle);
+    });
+
+    /* -------------------------------------------------------
+       SUCCESS
+    ------------------------------------------------------- */
 
     return NextResponse.json(
       {
         bundles,
-        source:
-          "google-sheet",
-        count:
-          bundles.length,
+
+        source: "google-sheet",
+
+        envLoaded: true,
+
+        count: bundles.length,
+
+        sheetRows: rows.length,
+
         refreshedAt:
           new Date().toISOString(),
       },
       {
+        status: 200,
+
         headers: {
           "Cache-Control":
             "no-store, no-cache, must-revalidate, max-age=0",
+
+          Pragma: "no-cache",
+
+          Expires: "0",
         },
       }
     );
@@ -421,14 +525,26 @@ export async function GET() {
     return NextResponse.json(
       {
         bundles: [],
+
         source: "error",
+
+        envLoaded: true,
+
         refreshedAt:
           new Date().toISOString(),
+
         error:
-          "We couldn't load the catalog. Please refresh or contact us on WhatsApp.",
+          error instanceof Error
+            ? error.message
+            : "Unable to load the Google Sheet catalog.",
       },
       {
         status: 502,
+
+        headers: {
+          "Cache-Control":
+            "no-store, no-cache, must-revalidate, max-age=0",
+        },
       }
     );
   }
