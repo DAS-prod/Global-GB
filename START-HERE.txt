@@ -1,0 +1,18 @@
+GODAVARI BASKET GLOBAL — START HERE
+
+1. The catalog is loaded only from GLOBAL_GOOGLE_SHEET_URL in .env.local.
+2. Run: npm install
+3. Run: npm run dev
+4. Open: http://localhost:3000
+
+Main routes:
+/              Home
+/build         Build Your Box
+/bundles       Browse bundles
+/gifting       Gifting
+/about         Our Godavari story
+/checkout      Review order + customer details + WhatsApp handoff
+/api/catalog   Google Sheet catalog API
+
+Minimum checkout weight: 5 kg.
+The selected box target can be 5 / 10 / 15 / 20 kg.
