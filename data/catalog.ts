@@ -1,11 +1,9 @@
-export type CategoryKey =
-  | "pickles"
-  | "sweets"
-  | "snacks"
-  | "podis"
-  | "cashews"
-  | "essentials"
-  | "memories";
+export const PACKAGING_WEIGHT_KG = 0.3;
+
+// Categories are intentionally NOT hard-coded. They are derived from the live
+// Google Sheet catalog so the Abroad storefront stays aligned with the parent
+// Godavari Basket catalog without maintaining a second demo list in code.
+export type CategoryKey = string;
 
 export type Category = {
   key: CategoryKey;
@@ -13,12 +11,16 @@ export type Category = {
   kicker: string;
   description: string;
   image: string;
-  accent: string;
+  accent?: string;
+  subcategories?: string[];
 };
 
 export type Bundle = {
   id: string;
   category: CategoryKey;
+  categoryName?: string;
+  parentCategory?: string;
+  subcategory?: string;
   name: string;
   subtitle: string;
   weightKg: number;
@@ -28,16 +30,6 @@ export type Bundle = {
   tags?: string[];
   popular?: boolean;
 };
-
-export const categories: Category[] = [
-  { key: "pickles", name: "Pickles", kicker: "The jar that tastes like home", description: "Andhra-style favourites curated for a balanced box.", image: "/images/categories/pickles.webp", accent: "#8b2f1d" },
-  { key: "sweets", name: "Sweets", kicker: "Celebrations, packed", description: "Traditional Godavari sweets chosen for gifting and nostalgia.", image: "/images/categories/sweets.webp", accent: "#a56822" },
-  { key: "snacks", name: "Snacks", kicker: "Tea-time, Godavari style", description: "Crunchy savouries and familiar evening favourites.", image: "/images/categories/snacks.webp", accent: "#b26116" },
-  { key: "podis", name: "Podis", kicker: "Every meal, instantly familiar", description: "Roasted spice powders and everyday Andhra meal companions.", image: "/images/categories/podis.webp", accent: "#aa321f" },
-  { key: "cashews", name: "Cashews", kicker: "Godavari's premium crunch", description: "Classic, roasted and flavoured cashew selections.", image: "/images/categories/cashews.webp", accent: "#9e742f" },
-  { key: "essentials", name: "Essentials", kicker: "Everyday pantry, rooted here", description: "Traditional staples, millets and pantry favourites.", image: "/images/categories/essentials.webp", accent: "#466034" },
-  { key: "memories", name: "90's Memories", kicker: "A little childhood in every box", description: "Nostalgic treats made for stories, sharing and smiles.", image: "/images/categories/memories.webp", accent: "#72553f" }
-];
 
 export const boxSizes = [
   { kg: 5, name: "Personal", description: "A compact box of favourites" },

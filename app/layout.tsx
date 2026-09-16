@@ -11,10 +11,10 @@ import IntroAnimation from "@/components/IntroAnimation";
 import Toast from "@/components/Toast";
 
 export const metadata: Metadata = {
-  title: "Godavari Basket Global | From Godavari, With Love",
+  title: "Godavari Basket Abroad | From Godavari, With Love",
   description: "Build a premium Godavari box with authentic regional favourites and send a little piece of home across the world.",
-  metadataBase: new URL("https://global.godavaribasket.com"),
-  openGraph: { title: "Godavari Basket Global", description: "From Godavari, With Love. Build your global Godavari box.", type: "website", images: ["/images/global/og.webp"] }
+  metadataBase: new URL("https://abroad.godavaribasket.com"),
+  openGraph: { title: "Godavari Basket Abroad", description: "From Godavari, With Love. Build your Godavari box for delivery abroad.", type: "website", images: ["/images/abroad/og.webp"] }
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

@@ -19,9 +19,9 @@ export default function Header() {
   return (
     <header className="siteHeader">
       <div className="headerInner shell">
-        <Link className="brand" href="/" aria-label="Godavari Basket Global home">
-          <span className="brandEmblem"><i>G</i><b /></span>
-          <span className="brandWords"><strong>GODAVARI BASKET</strong><small>GLOBAL · FROM GODAVARI, WITH LOVE.</small></span>
+        <Link className="brand" href="/" aria-label="Godavari Basket Abroad home">
+          <span className="brandLogoWrap"><img src="/images/brand/logo.webp" alt="" /></span>
+          <span className="brandWords"><strong>ABROAD</strong><small>FROM GODAVARI, WITH LOVE.</small></span>
         </Link>
         <nav className={menuOpen ? "mainNav open" : "mainNav"}>
           {links.map(([href, label]) => <Link className={pathname === href ? "active" : ""} href={href} key={href} onClick={() => setMenuOpen(false)}>{label}</Link>)}

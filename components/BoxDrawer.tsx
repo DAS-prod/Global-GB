@@ -7,7 +7,12 @@ import Price from "./Price";
 
 export default function BoxDrawer() {
   const { bundles } = useCatalog();
-  const { lines, drawerOpen, setDrawerOpen, totalWeight, totalInr, selectedBoxKg, minimumReached, remainingToMinimum, addBundle, decrementBundle, removeBundle, getBundle, giftMode, setGiftMode } = useBox();
+  const {
+    lines, drawerOpen, setDrawerOpen, totalProductWeight, totalWeight, totalInr,
+    selectedBoxKg, minimumReached, remainingToMinimum, addBundle, decrementBundle, removeBundle,
+    clearBox, getBundle, giftMode, setGiftMode
+  } = useBox();
+
   const progressTarget = Math.max(5, selectedBoxKg);
   const progress = Math.min(100, (totalWeight / progressTarget) * 100);
   const suggested = bundles
@@ -17,25 +22,60 @@ export default function BoxDrawer() {
 
   return <>
     <button aria-label="Close box drawer" className={drawerOpen ? "drawerBackdrop show" : "drawerBackdrop"} onClick={() => setDrawerOpen(false)} />
-    <aside className={drawerOpen ? "boxDrawer open" : "boxDrawer"}>
-      <div className="drawerTop"><div><span className="eyebrow light">YOUR SELECTION</span><h2>Your Godavari Box</h2></div><button className="drawerClose" onClick={() => setDrawerOpen(false)} aria-label="Close">×</button></div>
-      <div className="weightPanel"><div className="weightRow"><strong>{totalWeight.toFixed(1)} kg</strong><span>{selectedBoxKg} kg target</span></div><div className="progressTrack"><i style={{ width: `${progress}%` }} /></div><div className="weightMeta"><span>{minimumReached ? "✓ Ready to checkout" : `${remainingToMinimum.toFixed(1)} kg more to complete the minimum`}</span><span>{Math.round(progress)}%</span></div></div>
-      <div className="giftSwitch"><div><b>Sending as a gift?</b><small>We'll note this for your final order.</small></div><button aria-label="Toggle gift mode" className={giftMode ? "switch on" : "switch"} onClick={() => setGiftMode(!giftMode)}><i /></button></div>
-      <div className="drawerLines">
-        {lines.length === 0 ? <div className="emptyBox"><span>◇</span><h3>Your box is waiting.</h3><p>Choose bundles from across the Godavari pantry and build at least 5 kg.</p><Link href="/build" onClick={() => setDrawerOpen(false)}>Start building →</Link></div> : lines.map((line) => {
-          const bundle = getBundle(line.bundleId);
-          if (!bundle) return null;
-          return <div className="drawerLine" key={line.bundleId}><img src={bundle.image} alt="" /><div className="lineCopy"><b>{bundle.name}</b><small>{bundle.weightKg} kg each · <Price inr={bundle.priceInr} /></small><div className="qty"><button onClick={() => decrementBundle(bundle.id)} aria-label={`Decrease ${bundle.name}`}>−</button><span>{line.quantity}</span><button onClick={() => addBundle(bundle.id)} aria-label={`Increase ${bundle.name}`}>+</button></div></div><button className="remove" onClick={() => removeBundle(bundle.id)} aria-label={`Remove ${bundle.name}`}>×</button></div>;
-        })}
+    <aside className={drawerOpen ? "boxDrawer open" : "boxDrawer"} aria-hidden={!drawerOpen}>
+      <div className="drawerTop">
+        <div><span className="eyebrow light">YOUR SELECTION</span><h2>Your Godavari Box</h2></div>
+        <button className="drawerClose" onClick={() => setDrawerOpen(false)} aria-label="Close">×</button>
       </div>
-      {!minimumReached && lines.length > 0 && <div className="topUp"><p><b>Almost there.</b> Add around {remainingToMinimum.toFixed(1)} kg to complete your box.</p><div className="miniSuggestions">{suggested.map((bundle) => <button key={bundle.id} onClick={() => addBundle(bundle.id)}><img src={bundle.image} alt="" /><span><b>{bundle.name}</b><small>+ {bundle.weightKg} kg</small></span><em>＋</em></button>)}</div></div>}
+
+      <div className="drawerScroll">
+        <div className="weightPanel">
+          <div className="weightRow"><strong>{totalWeight.toFixed(1)} kg</strong><span>{selectedBoxKg} kg target</span></div>
+          <div className="progressTrack animatedProgress"><i style={{ width: `${progress}%` }} /></div>
+          <div className="weightMeta"><span>{minimumReached ? "✓ Minimum reached" : `${remainingToMinimum.toFixed(1)} kg more to minimum`}</span><span>{Math.round(progress)}%</span></div>
+        </div>
+
+        <div className="giftSwitch">
+          <div><b>Sending as a gift?</b><small>We'll note this for your final order.</small></div>
+          <button aria-label="Toggle gift mode" className={giftMode ? "switch on" : "switch"} onClick={() => setGiftMode(!giftMode)}><i /></button>
+        </div>
+
+        {lines.length > 0 && <div className="drawerListHead"><b>Your bundles ({lines.reduce((sum, line) => sum + line.quantity, 0)})</b><button onClick={clearBox}>Clear all</button></div>}
+
+        <div className="drawerLines">
+          {lines.length === 0 ? (
+            <div className="emptyBox"><span>◇</span><h3>Your box is waiting.</h3><p>Choose curated bundles and build a shipment of at least 5 kg.</p><Link href="/build" onClick={() => setDrawerOpen(false)}>Start building →</Link></div>
+          ) : lines.map((line) => {
+            const bundle = getBundle(line.bundleId);
+            if (!bundle) return null;
+            return <div className="drawerLine" key={line.bundleId}>
+              <img src={bundle.image} alt="" />
+              <div className="lineCopy">
+                <b>{bundle.name}</b>
+                <small>{bundle.items.slice(0, 3).join(" · ")}{bundle.items.length > 3 ? " + more" : ""}</small>
+                <small>{bundle.weightKg} kg each · <Price inr={bundle.priceInr} /></small>
+                <div className="qty"><button onClick={() => decrementBundle(bundle.id)} aria-label={`Decrease ${bundle.name}`}>−</button><span>{line.quantity}</span><button onClick={() => addBundle(bundle.id)} aria-label={`Increase ${bundle.name}`}>+</button></div>
+              </div>
+              <button className="remove" onClick={() => removeBundle(bundle.id)} aria-label={`Remove ${bundle.name}`}>×</button>
+            </div>;
+          })}
+        </div>
+
+        {!minimumReached && lines.length > 0 && (
+          <div className="topUp">
+            <div className="topUpHead"><p><b>Almost there.</b> Add around {remainingToMinimum.toFixed(1)} kg to reach the 5 kg minimum.</p><span>Suggested</span></div>
+            <div className="miniSuggestions">{suggested.map((bundle) => <button key={bundle.id} onClick={() => addBundle(bundle.id)}><img src={bundle.image} alt="" /><span><b>{bundle.name}</b><small>+ {bundle.weightKg} kg</small></span><em>＋</em></button>)}</div>
+          </div>
+        )}
+      </div>
+
       <div className="drawerBottom">
         <div className="totalLine"><span>Bundle subtotal</span><strong><Price inr={totalInr} /></strong></div>
         <div className="drawerActions">
           <Link className="drawerSecondary" href="/build" onClick={() => setDrawerOpen(false)}>Continue shopping</Link>
           {minimumReached ? <Link className="goldButton drawerCheckout" href="/checkout" onClick={() => setDrawerOpen(false)}>Checkout <span>→</span></Link> : <button className="goldButton drawerCheckout disabled" disabled>Checkout <span>→</span></button>}
         </div>
-        {!minimumReached && <small>Add {remainingToMinimum.toFixed(1)} kg more to unlock checkout.</small>}
+        {!minimumReached && lines.length > 0 && <small>Add {remainingToMinimum.toFixed(1)} kg more to unlock checkout.</small>}
       </div>
     </aside>
   </>;

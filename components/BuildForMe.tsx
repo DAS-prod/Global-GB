@@ -1,32 +1,50 @@
 "use client";
 
-import { CategoryKey } from "@/data/catalog";
+import { CategoryKey, PACKAGING_WEIGHT_KG } from "@/data/catalog";
 import { useBox } from "./BoxProvider";
 import { useCatalog } from "./CatalogProvider";
 import { useEffect, useState } from "react";
 
-const interests: { key: CategoryKey; label: string }[] = [
-  { key: "pickles", label: "Pickles" },
-  { key: "snacks", label: "Snacks" },
-  { key: "sweets", label: "Sweets" },
-  { key: "podis", label: "Podis" },
-  { key: "cashews", label: "Cashews" },
-  { key: "essentials", label: "Essentials" },
-];
-
 export default function BuildForMe() {
-  const { bundles } = useCatalog();
+  const { bundles, categories } = useCatalog();
   const { selectedBoxKg, setSelectedBoxKg, replaceBox } = useBox();
   const [open, setOpen] = useState(false);
   const [vegOnly, setVegOnly] = useState(true);
-  const [chosen, setChosen] = useState<CategoryKey[]>(["pickles", "snacks", "podis"]);
+  const [chosen, setChosen] = useState<CategoryKey[]>([]);
+  const [buildError, setBuildError] = useState("");
+
+  useEffect(() => {
+    if (!categories.length) return;
+    setChosen((current) => {
+      const valid = current.filter((key) => categories.some((category) => category.key === key));
+      return valid.length ? valid : categories.slice(0, 3).map((category) => category.key);
+    });
+  }, [categories]);
 
   useEffect(() => {
     if (!open) return;
-    const previous = document.body.style.overflow;
+
+    // Use a single scrolling surface (the modal layer). Locking the body with
+    // position:fixed created a second viewport on iOS and could make the
+    // concierge feel frozen after a short swipe.
+    const bodyOverflow = document.body.style.overflow;
+    const htmlOverflow = document.documentElement.style.overflow;
+    const bodyOverscroll = document.body.style.overscrollBehavior;
+
     document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overscrollBehavior = "none";
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+
     return () => {
-      document.body.style.overflow = previous;
+      document.body.style.overflow = bodyOverflow;
+      document.documentElement.style.overflow = htmlOverflow;
+      document.body.style.overscrollBehavior = bodyOverscroll;
+      window.removeEventListener("keydown", onKeyDown);
     };
   }, [open]);
 
@@ -39,30 +57,77 @@ export default function BuildForMe() {
   };
 
   const build = () => {
+    setBuildError("");
+
+    const isNonVeg = (bundle: (typeof bundles)[number]) => {
+      const searchable = [
+        bundle.name,
+        bundle.categoryName,
+        bundle.parentCategory,
+        bundle.subcategory,
+        ...(bundle.tags || []),
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .replace(/[\s_-]+/g, "");
+
+      return searchable.includes("nonveg") || searchable.includes("nonvegetarian");
+    };
+
     const pool = bundles.filter(
       (bundle) =>
         chosen.includes(bundle.category) &&
-        !(
-          vegOnly &&
-          bundle.tags?.some((tag) =>
-            tag.toLowerCase().replace(/\s/g, "").includes("non-veg") ||
-            tag.toLowerCase().replace(/\s/g, "").includes("nonveg")
-          )
-        )
+        (!vegOnly || !isNonVeg(bundle)) &&
+        Number.isFinite(bundle.weightKg) &&
+        bundle.weightKg > 0
     );
 
-    if (!pool.length) return;
+    if (!pool.length) {
+      setBuildError(
+        vegOnly
+          ? "No vegetarian bundles match those categories yet. Try Mixed or choose another category."
+          : "No bundles match those categories yet. Please choose another category."
+      );
+      return;
+    }
+
+    // The selected box is a shipment target. Packaging is 0.3 kg once per
+    // order, so Build for Me fills products to target minus packaging.
+    const shipmentTarget = Math.max(5, selectedBoxKg);
+    const productTarget = Math.max(0, shipmentTarget - PACKAGING_WEIGHT_KG);
+
+    // Round-robin by selected category so the result feels balanced instead
+    // of repeatedly adding the first bundle from the Sheet.
+    const grouped = chosen
+      .map((category) => pool.filter((bundle) => bundle.category === category))
+      .filter((group) => group.length > 0);
 
     const picked: string[] = [];
-    let weight = 0;
-    let cursor = 0;
-    const target = Math.max(5, selectedBoxKg);
+    let productWeight = 0;
+    let round = 0;
+    const MAX_LINES = 48;
 
-    while (weight < target && cursor < 30) {
-      const candidate = pool[cursor % pool.length];
-      picked.push(candidate.id);
-      weight += candidate.weightKg;
-      cursor += 1;
+    while (productWeight < productTarget && picked.length < MAX_LINES) {
+      let addedThisRound = false;
+
+      for (const group of grouped) {
+        if (productWeight >= productTarget || picked.length >= MAX_LINES) break;
+        const candidate = group[round % group.length];
+        if (!candidate) continue;
+
+        picked.push(candidate.id);
+        productWeight += candidate.weightKg;
+        addedThisRound = true;
+      }
+
+      if (!addedThisRound) break;
+      round += 1;
+    }
+
+    if (!picked.length) {
+      setBuildError("We couldn't create a box from those preferences. Please try another combination.");
+      return;
     }
 
     replaceBox(picked);
@@ -73,12 +138,12 @@ export default function BuildForMe() {
         behavior: "smooth",
         block: "start",
       });
-    }, 100);
+    }, 180);
   };
 
   return (
     <>
-      <button className="outlineButton" onClick={() => setOpen(true)}>
+      <button className="outlineButton" onClick={() => { setBuildError(""); setOpen(true); }}>
         ✦ Build for me
       </button>
 
@@ -88,9 +153,9 @@ export default function BuildForMe() {
           role="dialog"
           aria-modal="true"
           aria-label="Godavari Concierge"
-          onMouseDown={() => setOpen(false)}
+          onClick={() => setOpen(false)}
         >
-          <div className="quizModal" onMouseDown={(event) => event.stopPropagation()}>
+          <div className="quizModal" onClick={(event) => event.stopPropagation()}>
             <button
               className="modalClose"
               type="button"
@@ -136,18 +201,20 @@ export default function BuildForMe() {
             <div className="quizSection">
               <label>What do you miss most?</label>
               <div className="chips">
-                {interests.map((item) => (
+                {categories.map((item) => (
                   <button
                     type="button"
                     key={item.key}
                     className={chosen.includes(item.key) ? "active" : ""}
                     onClick={() => toggle(item.key)}
                   >
-                    {item.label}
+                    {item.name}
                   </button>
                 ))}
               </div>
             </div>
+
+            {buildError ? <p className="conciergeError" role="alert">{buildError}</p> : null}
 
             <div className="quizAction">
               <button className="goldButton full" type="button" onClick={build} disabled={!chosen.length || !bundles.length}>

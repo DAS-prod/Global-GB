@@ -7,7 +7,7 @@ import Price from "@/components/Price";
 import { useBox } from "@/components/BoxProvider";
 
 export default function CheckoutPage() {
-  const { lines, getBundle, totalWeight, totalInr, minimumReached, selectedCountry, giftMode } = useBox();
+  const { lines, getBundle, totalProductWeight, packagingWeight, totalWeight, totalInr, minimumReached, remainingToMinimum, selectedCountry, giftMode } = useBox();
   const [sending, setSending] = useState(false);
   const orderLines = useMemo(() => lines.map((line) => ({ ...line, bundle: getBundle(line.bundleId) })).filter((line) => line.bundle), [lines, getBundle]);
 
@@ -37,12 +37,14 @@ export default function CheckoutPage() {
     }).join("\n");
 
     const message = [
-      "Hi Godavari Basket, I would like to continue this Global order.",
+      "Hi Godavari Basket, I would like to continue this Godavari Basket Abroad order.",
       "",
       "ORDER DETAILS",
       itemsText,
       "",
-      `Total product weight: ${totalWeight.toFixed(1)} kg`,
+      `Product weight: ${totalProductWeight.toFixed(1)} kg`,
+      `Packaging weight: ${packagingWeight.toFixed(1)} kg`,
+      `Total shipment weight: ${totalWeight.toFixed(1)} kg`,
       `Bundle subtotal: INR ${totalInr}`,
       `Gift order: ${giftMode ? "Yes" : "No"}`,
       "",
@@ -57,8 +59,8 @@ export default function CheckoutPage() {
       "Please confirm availability, final packing/shipping and payment details."
     ].join("\n");
 
-    const number = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "919618851406";
-    window.open(`https://wa.me/${number}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
+    const number = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER?.trim();
+    if (number) window.open(`https://wa.me/${number}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
     setSending(false);
   };
 
@@ -84,15 +86,15 @@ export default function CheckoutPage() {
             <label className="full"><span>Order notes</span><textarea name="notes" rows={4} placeholder="Anything we should know about this order?" /></label>
           </div>
           <button className="whatsappCheckout" type="submit" disabled={!minimumReached || !orderLines.length || sending}><span>Continue order on WhatsApp</span><b>→</b></button>
-          {!minimumReached && orderLines.length > 0 && <p className="checkoutWarning">Add {(5 - totalWeight).toFixed(1)} kg more to reach the 5 kg minimum before checkout.</p>}
+          {!minimumReached && orderLines.length > 0 && <p className="checkoutWarning">Add {remainingToMinimum.toFixed(1)} kg more to reach the 5 kg minimum.</p>}
         </form>
       </div>
 
       <aside className="checkoutSummary">
         <span className="eyebrow">ORDER SUMMARY</span>
         <h3>Your Godavari Box</h3>
-        <div className="summaryRows"><p><span>Bundles</span><b>{lines.reduce((sum, line) => sum + line.quantity, 0)}</b></p><p><span>Total weight</span><b>{totalWeight.toFixed(1)} kg</b></p><p><span>Minimum</span><b className={minimumReached ? "good" : "warn"}>{minimumReached ? "Reached ✓" : "5 kg"}</b></p><p><span>Bundle subtotal</span><b><Price inr={totalInr} /></b></p></div>
-        <p className="checkoutNote">Final international shipping and payment are confirmed with our team on WhatsApp after reviewing destination, packing and availability.</p>
+        <div className="summaryRows"><p><span>Bundles</span><b>{lines.reduce((sum, line) => sum + line.quantity, 0)}</b></p><p><span>Products</span><b>{totalProductWeight.toFixed(1)} kg</b></p><p><span>Packaging</span><b>{packagingWeight.toFixed(1)} kg</b></p><p><span>Shipment weight</span><b>{totalWeight.toFixed(1)} kg</b></p><p><span>Minimum</span><b className={minimumReached ? "good" : "warn"}>{minimumReached ? "Reached ✓" : "5 kg"}</b></p><p><span>Bundle subtotal</span><b><Price inr={totalInr} /></b></p></div>
+        <p className="checkoutNote">Final overseas shipping and payment are confirmed with our team on WhatsApp after reviewing destination, packing and availability.</p>
         <Link className="checkoutEdit" href="/build">← Continue shopping</Link>
       </aside>
     </section>

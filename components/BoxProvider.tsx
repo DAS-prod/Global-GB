@@ -1,6 +1,6 @@
 "use client";
 
-import { Bundle, countries } from "@/data/catalog";
+import { Bundle, countries, PACKAGING_WEIGHT_KG } from "@/data/catalog";
 import { useCatalog } from "./CatalogProvider";
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 
@@ -12,6 +12,8 @@ type BoxContextValue = {
   giftMode: boolean;
   drawerOpen: boolean;
   toastMessage: string;
+  totalProductWeight: number;
+  packagingWeight: number;
   totalWeight: number;
   totalInr: number;
   itemCount: number;
@@ -28,10 +30,11 @@ type BoxContextValue = {
   clearBox: () => void;
   replaceBox: (bundleIds: string[]) => void;
   getBundle: (id: string) => Bundle | undefined;
+  getQuantity: (id: string) => number;
 };
 
 const BoxContext = createContext<BoxContextValue | null>(null);
-const STORAGE_KEY = "gb-global-builder-v3";
+const STORAGE_KEY = "gb-abroad-builder-v1";
 
 export function BoxProvider({ children }: { children: React.ReactNode }) {
   const { bundles } = useCatalog();
@@ -47,7 +50,7 @@ export function BoxProvider({ children }: { children: React.ReactNode }) {
   const showToast = (message: string) => {
     setToastMessage(message);
     if (toastTimer.current) clearTimeout(toastTimer.current);
-    toastTimer.current = setTimeout(() => setToastMessage(""), 2200);
+    toastTimer.current = setTimeout(() => setToastMessage(""), 1900);
   };
 
   useEffect(() => {
@@ -71,8 +74,18 @@ export function BoxProvider({ children }: { children: React.ReactNode }) {
   }, [lines, selectedBoxKg, countryCode, giftMode, hydrated]);
 
   const getBundle = (id: string) => bundles.find((bundle) => bundle.id === id);
-  const totalWeight = useMemo(() => lines.reduce((sum, line) => sum + (getBundle(line.bundleId)?.weightKg || 0) * line.quantity, 0), [lines, bundles]);
-  const totalInr = useMemo(() => lines.reduce((sum, line) => sum + (getBundle(line.bundleId)?.priceInr || 0) * line.quantity, 0), [lines, bundles]);
+  const getQuantity = (id: string) => lines.find((line) => line.bundleId === id)?.quantity || 0;
+
+  const totalProductWeight = useMemo(
+    () => lines.reduce((sum, line) => sum + (getBundle(line.bundleId)?.weightKg || 0) * line.quantity, 0),
+    [lines, bundles]
+  );
+  const packagingWeight = lines.length ? PACKAGING_WEIGHT_KG : 0;
+  const totalWeight = Number((totalProductWeight + packagingWeight).toFixed(2));
+  const totalInr = useMemo(
+    () => lines.reduce((sum, line) => sum + (getBundle(line.bundleId)?.priceInr || 0) * line.quantity, 0),
+    [lines, bundles]
+  );
   const itemCount = lines.reduce((sum, line) => sum + line.quantity, 0);
   const minimumReached = totalWeight >= 5;
   const remainingToMinimum = Math.max(0, Number((5 - totalWeight).toFixed(2)));
@@ -86,21 +99,43 @@ export function BoxProvider({ children }: { children: React.ReactNode }) {
         ? current.map((line) => line.bundleId === bundleId ? { ...line, quantity: line.quantity + 1 } : line)
         : [...current, { bundleId, quantity: 1 }];
     });
-    showToast(bundle ? `${bundle.name} added to your Godavari Box ✓` : "Added to your Godavari Box ✓");
+    showToast(bundle ? `${bundle.name} added to your box` : "Added to your Godavari Box");
   };
 
-  const decrementBundle = (bundleId: string) => setLines((current) => current.map((line) => line.bundleId === bundleId ? { ...line, quantity: line.quantity - 1 } : line).filter((line) => line.quantity > 0));
-  const removeBundle = (bundleId: string) => setLines((current) => current.filter((line) => line.bundleId !== bundleId));
-  const clearBox = () => setLines([]);
+  const decrementBundle = (bundleId: string) => {
+    const bundle = getBundle(bundleId);
+    setLines((current) => current
+      .map((line) => line.bundleId === bundleId ? { ...line, quantity: line.quantity - 1 } : line)
+      .filter((line) => line.quantity > 0));
+    if (bundle) showToast(`${bundle.name} updated`);
+  };
+
+  const removeBundle = (bundleId: string) => {
+    const bundle = getBundle(bundleId);
+    setLines((current) => current.filter((line) => line.bundleId !== bundleId));
+    if (bundle) showToast(`${bundle.name} removed`);
+  };
+
+  const clearBox = () => {
+    setLines([]);
+    showToast("Your box is empty");
+  };
+
   const replaceBox = (bundleIds: string[]) => {
     const counts = new Map<string, number>();
     bundleIds.forEach((id) => counts.set(id, (counts.get(id) || 0) + 1));
     setLines(Array.from(counts, ([bundleId, quantity]) => ({ bundleId, quantity })));
-    showToast("Your suggested Godavari Box is ready ✓");
+    showToast("Your suggested Godavari Box is ready");
   };
 
   return (
-    <BoxContext.Provider value={{ lines, selectedBoxKg, countryCode, giftMode, drawerOpen, toastMessage, totalWeight, totalInr, itemCount, minimumReached, remainingToMinimum, selectedCountry, setSelectedBoxKg, setCountryCode, setGiftMode, setDrawerOpen, addBundle, removeBundle, decrementBundle, clearBox, replaceBox, getBundle }}>
+    <BoxContext.Provider value={{
+      lines, selectedBoxKg, countryCode, giftMode, drawerOpen, toastMessage,
+      totalProductWeight, packagingWeight, totalWeight, totalInr, itemCount,
+      minimumReached, remainingToMinimum, selectedCountry,
+      setSelectedBoxKg, setCountryCode, setGiftMode, setDrawerOpen,
+      addBundle, removeBundle, decrementBundle, clearBox, replaceBox, getBundle, getQuantity
+    }}>
       {children}
     </BoxContext.Provider>
   );
