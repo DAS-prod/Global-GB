@@ -914,7 +914,8 @@ button,input,select,textarea{font-family:"Manrope",Arial,sans-serif}
   right: 22px;
   bottom: 24px;
 
-  z-index: 950;
+  /* Keep above normal page content, but below the cart drawer/backdrop. */
+  z-index: 150;
 
   min-width: 58px;
   height: 58px;
