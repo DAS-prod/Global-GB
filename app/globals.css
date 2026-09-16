@@ -8,8 +8,312 @@
 *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--paper);color:var(--ink);font-family:"Manrope",Arial,sans-serif;-webkit-font-smoothing:antialiased}button,input,select{font:inherit}button,a{-webkit-tap-highlight-color:transparent}button{cursor:pointer}a{color:inherit;text-decoration:none}img{display:block;max-width:100%}.shell{width:min(1320px,calc(100% - 56px));margin-inline:auto}.eyebrow{font-size:10px;font-weight:800;letter-spacing:.22em;text-transform:uppercase;color:#9a782e}.eyebrow.light{color:var(--gold2)}
 
 /* intro */
-.introScreen{position:fixed;inset:0;z-index:9999;background:#f8f6ef;display:grid;place-items:center;align-content:center;gap:9px;transition:opacity .48s ease,visibility .48s ease}.introScreen.leaving{opacity:0;visibility:hidden}.introScreen strong{font:600 28px/1 "Cormorant Garamond",serif;letter-spacing:.12em;color:var(--forest)}.introScreen small{font-size:9px;letter-spacing:.28em;color:#45624f}.introEmblem{width:74px;height:74px;border:1px solid rgba(201,162,74,.75);border-radius:50%;display:grid;place-items:center;position:relative;color:var(--gold);animation:introRise .8s ease both}.introEmblem span{font:600 32px "Cormorant Garamond",serif}.introEmblem i{position:absolute;width:25px;height:8px;border-top:1px solid var(--forest);border-radius:50%;bottom:15px;transform:rotate(-8deg)}.introLine{width:100px;height:1px;background:#ddd0ad;margin-top:10px;overflow:hidden}.introLine i{display:block;width:100%;height:100%;background:var(--gold);transform:translateX(-100%);animation:loadLine 1.1s .12s ease forwards}@keyframes introRise{from{opacity:0;transform:translateY(10px) scale(.96)}to{opacity:1;transform:none}}@keyframes loadLine{to{transform:none}}
+/* =========================================================
+   GODAVARI BASKET INTRO
+========================================================= */
 
+.gbIntro {
+  position: fixed;
+  inset: 0;
+
+  z-index: 999999;
+
+  width: 100%;
+  height: 100dvh;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: #f8f6ef;
+
+  opacity: 1;
+
+  transform: scale(1);
+
+  filter: blur(0);
+
+  pointer-events: all;
+
+  will-change:
+    opacity,
+    transform,
+    filter;
+
+  /*
+   * Slow premium transition into homepage
+   */
+  transition:
+    opacity 1200ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 1200ms cubic-bezier(0.22, 1, 0.36, 1),
+    filter 1000ms ease;
+}
+
+
+/* =========================================================
+   SLOW EXIT INTO HOME PAGE
+========================================================= */
+
+.gbIntro.gbIntroLeaving {
+  opacity: 0;
+
+  /*
+   * Tiny movement gives a cinematic dissolve
+   * instead of a simple disappearing screen.
+   */
+  transform: scale(1.018);
+
+  filter: blur(2px);
+
+  pointer-events: none;
+}
+
+
+/* =========================================================
+   CONTENT
+========================================================= */
+
+.gbIntroContent {
+  width: 100%;
+
+  display: flex;
+  flex-direction: column;
+
+  align-items: center;
+  justify-content: center;
+
+  text-align: center;
+
+  padding: 24px;
+
+  transition:
+    opacity 900ms ease,
+    transform 1100ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+
+/*
+ * During exit, logo + tagline move very slightly
+ * while the homepage becomes visible underneath.
+ */
+
+.gbIntroLeaving .gbIntroContent {
+  opacity: 0;
+
+  transform: translateY(-5px) scale(0.99);
+}
+
+
+/* =========================================================
+   LOGO
+========================================================= */
+
+.gbIntroLogo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  opacity: 1;
+
+  animation:
+    gbIntroLogoReveal
+    750ms
+    cubic-bezier(0.22, 1, 0.36, 1)
+    both;
+}
+
+.gbIntroLogo img {
+  display: block;
+
+  width: min(460px, 78vw);
+
+  height: auto;
+
+  object-fit: contain;
+}
+
+
+@keyframes gbIntroLogoReveal {
+  from {
+    opacity: 0;
+
+    transform:
+      translateY(12px)
+      scale(0.965);
+  }
+
+  to {
+    opacity: 1;
+
+    transform:
+      translateY(0)
+      scale(1);
+  }
+}
+
+
+/* =========================================================
+   TAGLINE
+========================================================= */
+
+.gbIntroTagline {
+  margin-top: 20px;
+
+  opacity: 0;
+
+  transform: translateY(15px);
+
+  transition:
+    opacity 700ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 700ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+
+.gbIntroTaglineVisible {
+  opacity: 1;
+
+  transform: translateY(0);
+}
+
+
+.gbIntroTagline p {
+  margin: 0;
+
+  font-family:
+    "Manrope",
+    Arial,
+    sans-serif;
+
+  font-size: 10px;
+
+  font-weight: 600;
+
+  text-transform: uppercase;
+
+  letter-spacing: 0.35em;
+
+  color: #264e36;
+}
+
+
+/* =========================================================
+   GOLD / GREEN ORNAMENT
+========================================================= */
+
+.gbIntroOrnament {
+  margin-top: 22px;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  gap: 12px;
+}
+
+
+.gbIntroOrnament span {
+  width: 48px;
+  height: 1px;
+
+  background:
+    rgba(139, 94, 52, 0.4);
+}
+
+
+.gbIntroOrnament b {
+  color: #264e36;
+
+  font-size: 14px;
+
+  font-weight: 400;
+
+  line-height: 1;
+}
+
+
+/* =========================================================
+   TABLET
+========================================================= */
+
+@media (max-width: 768px) {
+  .gbIntroLogo img {
+    width: min(380px, 82vw);
+  }
+
+  .gbIntroTagline {
+    margin-top: 18px;
+  }
+
+  .gbIntroTagline p {
+    font-size: 9px;
+
+    letter-spacing: 0.3em;
+  }
+
+  .gbIntroOrnament {
+    margin-top: 20px;
+  }
+}
+
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media (max-width: 560px) {
+  .gbIntroContent {
+    padding: 20px 18px;
+  }
+
+  .gbIntroLogo img {
+    width: min(280px, 78vw);
+  }
+
+  .gbIntroTagline {
+    margin-top: 17px;
+  }
+
+  .gbIntroTagline p {
+    max-width: 300px;
+
+    font-size: 8px;
+
+    line-height: 1.7;
+
+    letter-spacing: 0.28em;
+  }
+
+  .gbIntroOrnament {
+    margin-top: 18px;
+
+    gap: 10px;
+  }
+
+  .gbIntroOrnament span {
+    width: 42px;
+  }
+
+  .gbIntroOrnament b {
+    font-size: 12px;
+  }
+}
+
+
+/* =========================================================
+   REDUCED MOTION
+========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+  .gbIntro,
+  .gbIntroContent,
+  .gbIntroLogo,
+  .gbIntroTagline {
+    animation: none !important;
+
+    transition-duration: 0.01ms !important;
+  }
+}
 /* reveal */
 [data-reveal]{opacity:0;transform:translateY(22px);transition:opacity .7s ease,transform .7s cubic-bezier(.2,.7,.2,1)}[data-reveal].is-visible{opacity:1;transform:none}@media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;animation:none!important;transition:none!important}[data-reveal]{opacity:1;transform:none}}
 
