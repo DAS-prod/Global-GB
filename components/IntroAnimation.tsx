@@ -3,20 +3,77 @@
 import { useEffect, useState } from "react";
 
 export default function IntroAnimation() {
-  const [hide, setHide] = useState(false);
-  const [gone, setGone] = useState(false);
+  const [stage, setStage] = useState(0);
+  const [visible, setVisible] = useState(true);
+
   useEffect(() => {
-    const a = window.setTimeout(() => setHide(true), 1250);
-    const b = window.setTimeout(() => setGone(true), 1750);
-    return () => { window.clearTimeout(a); window.clearTimeout(b); };
+    // 0–1 sec: Logo
+    const logoTimer = window.setTimeout(() => {
+      setStage(1);
+    }, 1000);
+
+    // 1–2 sec: Tagline
+    const taglineTimer = window.setTimeout(() => {
+      setStage(2);
+    }, 2000);
+
+    // Hold briefly, then slowly dissolve into homepage
+    const exitTimer = window.setTimeout(() => {
+      setStage(3);
+    }, 2700);
+
+    // Fade lasts ~1.2 sec, then remove intro completely
+    const removeTimer = window.setTimeout(() => {
+      setVisible(false);
+    }, 4000);
+
+    return () => {
+      window.clearTimeout(logoTimer);
+      window.clearTimeout(taglineTimer);
+      window.clearTimeout(exitTimer);
+      window.clearTimeout(removeTimer);
+    };
   }, []);
-  if (gone) return null;
+
+  if (!visible) {
+    return null;
+  }
+
   return (
-    <div className={hide ? "introScreen leaving" : "introScreen"}>
-      <div className="introEmblem"><span>G</span><i /></div>
-      <strong>GODAVARI BASKET</strong>
-      <small>FROM GODAVARI, WITH LOVE.</small>
-      <div className="introLine"><i /></div>
+    <div
+      className={`gbIntro ${
+        stage === 3 ? "gbIntroLeaving" : ""
+      }`}
+      aria-hidden="true"
+    >
+      <div className="gbIntroContent">
+        {/* LOGO */}
+        <div className="gbIntroLogo">
+          <img
+            src="/images/brand/logo.webp"
+            alt="Godavari Basket"
+          />
+        </div>
+
+        {/* TAGLINE */}
+        <div
+          className={`gbIntroTagline ${
+            stage >= 1
+              ? "gbIntroTaglineVisible"
+              : ""
+          }`}
+        >
+          <p>
+            Authentic Goodness From Godavari
+          </p>
+
+          <div className="gbIntroOrnament">
+            <span />
+            <b>✦</b>
+            <span />
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
