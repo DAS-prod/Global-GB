@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import FloatingWhatsApp from "@/components/FloatingWhatsApp";
 import "./globals.css";
 import { CatalogProvider } from "@/components/CatalogProvider";
 import { BoxProvider } from "@/components/BoxProvider";
@@ -18,5 +19,5 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><body><CatalogProvider><BoxProvider><IntroAnimation /><MotionInit /><Header />{children}<BoxDrawer /><FloatingBox /><WhatsAppButton /><Toast /></BoxProvider></CatalogProvider></body></html>;
+  return <html lang="en"><body><CatalogProvider><BoxProvider><IntroAnimation /><MotionInit /><Header />{children}<BoxDrawer /><FloatingBox /><WhatsAppButton /><Toast /></BoxProvider></CatalogProvider> <FloatingWhatsApp /> </body></html>;
 }
