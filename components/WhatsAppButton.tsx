@@ -8,13 +8,11 @@ function WhatsAppIcon() {
   return (
     <svg
       viewBox="0 0 32 32"
-      width="28"
-      height="28"
+      width="27"
+      height="27"
       aria-hidden="true"
       style={{
         display: "block",
-        width: "28px",
-        height: "28px",
         fill: "currentColor",
       }}
     >
@@ -25,6 +23,7 @@ function WhatsAppIcon() {
 
 export default function WhatsAppButton() {
   const [mounted, setMounted] = useState(false);
+  const [mobile, setMobile] = useState(false);
 
   const {
     lines,
@@ -38,13 +37,20 @@ export default function WhatsAppButton() {
 
   useEffect(() => {
     setMounted(true);
+
+    const updateScreen = () => {
+      setMobile(window.innerWidth <= 560);
+    };
+
+    updateScreen();
+
+    window.addEventListener("resize", updateScreen);
+
+    return () => {
+      window.removeEventListener("resize", updateScreen);
+    };
   }, []);
 
-  /*
-   * IMPORTANT:
-   * We use a fallback number so the button does not disappear
-   * when NEXT_PUBLIC_WHATSAPP_NUMBER is missing.
-   */
   const rawNumber =
     process.env.NEXT_PUBLIC_WHATSAPP_NUMBER?.trim() ||
     "919618851406";
@@ -65,7 +71,7 @@ export default function WhatsAppButton() {
     .join(", ");
 
   const message = [
-    "Hi Godavari Basket, I need help customizing my Godavari Basket Abroad box.",
+    "Hi Godavari Basket, I need help with my Godavari Basket Abroad order.",
     "",
     `Destination: ${selectedCountry.name}`,
     `Target: ${selectedBoxKg} kg`,
@@ -89,84 +95,63 @@ export default function WhatsAppButton() {
       target="_blank"
       rel="noopener noreferrer"
       aria-label="Chat with Godavari Basket on WhatsApp"
-      title="Godavari Concierge"
+      title="Chat on WhatsApp"
       style={{
         position: "fixed",
 
-        right: "22px",
-        bottom: "22px",
+        /*
+         * MOBILE:
+         * Godavari cart is at bottom.
+         * WhatsApp stays just above it.
+         *
+         * DESKTOP:
+         * Cart sits higher on right side,
+         * so WhatsApp stays directly above it.
+         */
+        right: mobile ? "16px" : "26px",
+        bottom: mobile ? "84px" : "162px",
+
+        width: mobile ? "48px" : "50px",
+        height: mobile ? "48px" : "50px",
+
+        borderRadius: "50%",
 
         display: "flex",
         alignItems: "center",
-        gap: "10px",
+        justifyContent: "center",
 
-        minHeight: "58px",
-
-        padding: "8px 16px 8px 8px",
-
-        borderRadius: "999px",
-
-        background: "#173923",
+        background: "#25D366",
         color: "#ffffff",
 
         textDecoration: "none",
 
-        boxShadow: "0 12px 30px rgba(0,0,0,0.22)",
+        boxShadow: "0 8px 22px rgba(0, 0, 0, 0.20)",
 
         zIndex: 99999,
 
         opacity: 1,
         visibility: "visible",
         pointerEvents: "auto",
+
+        transition:
+          "transform 0.2s ease, box-shadow 0.2s ease",
+      }}
+      onMouseEnter={(event) => {
+        event.currentTarget.style.transform =
+          "translateY(-2px) scale(1.04)";
+
+        event.currentTarget.style.boxShadow =
+          "0 10px 26px rgba(0, 0, 0, 0.24)";
+      }}
+      onMouseLeave={(event) => {
+        event.currentTarget.style.transform =
+          "translateY(0) scale(1)";
+
+        event.currentTarget.style.boxShadow =
+          "0 8px 22px rgba(0, 0, 0, 0.20)";
       }}
     >
-      <b
-        style={{
-          width: "42px",
-          height: "42px",
-
-          borderRadius: "50%",
-
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-
-          flexShrink: 0,
-
-          background: "#25D366",
-          color: "#ffffff",
-        }}
-      >
-        <WhatsAppIcon />
-      </b>
-
-      <span
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          lineHeight: 1.15,
-        }}
-      >
-        <small
-          style={{
-            fontSize: "10px",
-            opacity: 0.78,
-            marginBottom: "3px",
-          }}
-        >
-          Need a custom mix?
-        </small>
-
-        <strong
-          style={{
-            fontSize: "13px",
-            fontWeight: 700,
-            whiteSpace: "nowrap",
-          }}
-        >
-          Godavari Concierge
-        </strong>
-      </span>
+      <WhatsAppIcon />
     </a>,
     document.body
   );
