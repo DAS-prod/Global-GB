@@ -1,29 +1,173 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useBox } from "./BoxProvider";
 
 function WhatsAppIcon() {
-  return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 11.6a8.5 8.5 0 0 1-12.6 7.5L3.5 20.5l1.4-4.3a8.5 8.5 0 1 1 15.6-4.6Z"/><path d="M8.2 7.7c.2-.5.5-.5.8-.5h.6c.2 0 .4 0 .6.5l.8 1.9c.1.3.1.5-.1.8l-.6.8c-.2.2-.2.4 0 .7.7 1.2 1.7 2.1 2.9 2.8.3.2.5.1.7-.1l.9-1.1c.2-.3.5-.3.8-.2l1.8.9c.3.1.5.3.5.5 0 .3-.1 1.5-1 2.2-.7.6-1.6.8-2.6.6-1.1-.2-2.5-.7-4.2-2.2-1.4-1.2-2.4-2.7-2.8-3.4-.4-.7-1.7-3.1-.1-5.2Z"/></svg>;
+  return (
+    <svg
+      viewBox="0 0 32 32"
+      width="28"
+      height="28"
+      aria-hidden="true"
+      style={{
+        display: "block",
+        width: "28px",
+        height: "28px",
+        fill: "currentColor",
+      }}
+    >
+      <path d="M16.04 3C9.39 3 4 8.28 4 14.79c0 2.3.68 4.55 1.97 6.47L4 28l7.02-1.82a12.22 12.22 0 0 0 5.01 1.07h.01c6.64 0 12.04-5.28 12.04-11.78C28.08 8.96 22.68 3 16.04 3Zm0 21.99a9.95 9.95 0 0 1-5.07-1.39l-.36-.21-4.17 1.08 1.11-4.05-.24-.38a9.46 9.46 0 0 1-1.54-5.17c0-5.24 4.36-9.5 9.72-9.5s9.72 4.26 9.72 9.5-4.36 10.12-9.17 10.12Zm5.33-7.57c-.29-.14-1.72-.83-1.99-.93-.27-.09-.46-.14-.66.14-.19.28-.75.93-.92 1.12-.17.19-.34.21-.63.07-.29-.14-1.23-.44-2.34-1.42a8.61 8.61 0 0 1-1.62-1.98c-.17-.28-.02-.43.13-.57.13-.13.29-.33.44-.5.14-.16.19-.28.29-.47.1-.19.05-.35-.02-.5-.07-.14-.66-1.55-.9-2.12-.24-.57-.48-.49-.66-.5h-.56c-.19 0-.51.07-.78.35-.27.28-1.02.98-1.02 2.38 0 1.4 1.04 2.76 1.18 2.95.15.19 2.05 3.07 4.97 4.31.69.29 1.23.46 1.65.59.69.21 1.32.18 1.82.11.56-.08 1.72-.69 1.96-1.35.24-.66.24-1.23.17-1.35-.07-.12-.27-.19-.56-.33Z" />
+    </svg>
+  );
 }
 
 export default function WhatsAppButton() {
-  const { lines, getBundle, totalProductWeight, totalWeight, selectedBoxKg, selectedCountry } = useBox();
-  const number = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER?.trim();
-  if (!number) return null;
+  const [mounted, setMounted] = useState(false);
 
-  const bundleList = lines.map((line) => {
-    const bundle = getBundle(line.bundleId);
-    return bundle ? `${bundle.name} x${line.quantity}` : null;
-  }).filter(Boolean).join(", ");
+  const {
+    lines,
+    getBundle,
+    totalProductWeight,
+    totalWeight,
+    transportUsd,
+    selectedBoxKg,
+    selectedCountry,
+  } = useBox();
 
-  const text = encodeURIComponent([
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  /*
+   * IMPORTANT:
+   * We use a fallback number so the button does not disappear
+   * when NEXT_PUBLIC_WHATSAPP_NUMBER is missing.
+   */
+  const rawNumber =
+    process.env.NEXT_PUBLIC_WHATSAPP_NUMBER?.trim() ||
+    "919618851406";
+
+  const number = rawNumber.replace(/\D/g, "");
+
+  const bundleList = lines
+    .map((line) => {
+      const bundle = getBundle(line.bundleId);
+
+      if (!bundle) {
+        return null;
+      }
+
+      return `${bundle.name} x${line.quantity}`;
+    })
+    .filter(Boolean)
+    .join(", ");
+
+  const message = [
     "Hi Godavari Basket, I need help customizing my Godavari Basket Abroad box.",
+    "",
     `Destination: ${selectedCountry.name}`,
     `Target: ${selectedBoxKg} kg`,
     `Current bundles: ${bundleList || "Not selected yet"}`,
     `Products: ${totalProductWeight.toFixed(1)} kg`,
-    `Shipment weight: ${totalWeight.toFixed(1)} kg`
-  ].join("\n"));
+    `Shipment weight: ${totalWeight.toFixed(1)} kg`,
+    `Transport estimate: USD ${transportUsd}`,
+  ].join("\n");
 
-  return <a className="whatsapp" href={`https://wa.me/${number}?text=${text}`} target="_blank" rel="noreferrer"><b className="whatsappMark"><WhatsAppIcon /></b><span><small>Need a custom mix?</small>Godavari Concierge</span></a>;
+  const whatsappUrl =
+    `https://wa.me/${number}` +
+    `?text=${encodeURIComponent(message)}`;
+
+  if (!mounted) {
+    return null;
+  }
+
+  return createPortal(
+    <a
+      href={whatsappUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label="Chat with Godavari Basket on WhatsApp"
+      title="Godavari Concierge"
+      style={{
+        position: "fixed",
+
+        right: "22px",
+        bottom: "22px",
+
+        display: "flex",
+        alignItems: "center",
+        gap: "10px",
+
+        minHeight: "58px",
+
+        padding: "8px 16px 8px 8px",
+
+        borderRadius: "999px",
+
+        background: "#173923",
+        color: "#ffffff",
+
+        textDecoration: "none",
+
+        boxShadow: "0 12px 30px rgba(0,0,0,0.22)",
+
+        zIndex: 99999,
+
+        opacity: 1,
+        visibility: "visible",
+        pointerEvents: "auto",
+      }}
+    >
+      <b
+        style={{
+          width: "42px",
+          height: "42px",
+
+          borderRadius: "50%",
+
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+
+          flexShrink: 0,
+
+          background: "#25D366",
+          color: "#ffffff",
+        }}
+      >
+        <WhatsAppIcon />
+      </b>
+
+      <span
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          lineHeight: 1.15,
+        }}
+      >
+        <small
+          style={{
+            fontSize: "10px",
+            opacity: 0.78,
+            marginBottom: "3px",
+          }}
+        >
+          Need a custom mix?
+        </small>
+
+        <strong
+          style={{
+            fontSize: "13px",
+            fontWeight: 700,
+            whiteSpace: "nowrap",
+          }}
+        >
+          Godavari Concierge
+        </strong>
+      </span>
+    </a>,
+    document.body
+  );
 }
