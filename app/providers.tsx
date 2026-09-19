@@ -9,6 +9,7 @@ import Header from "@/components/Header";
 import BoxDrawer from "@/components/BoxDrawer";
 import FloatingBox from "@/components/FloatingBox";
 import WhatsAppButton from "@/components/WhatsAppButton";
+import FloatingWhatsApp from "@/components/FloatingWhatsApp";
 import Toast from "@/components/Toast";
 
 export default function Providers({
@@ -32,6 +33,8 @@ export default function Providers({
         <FloatingBox />
 
         <WhatsAppButton />
+
+        <FloatingWhatsApp />
 
         <Toast />
       </BoxProvider>
