@@ -14,6 +14,7 @@ export default function CheckoutPage() {
     packagingWeight,
     totalWeight,
     totalInr,
+    transportUsd,
     minimumReached,
     remainingToMinimum,
     selectedCountry,
@@ -162,6 +163,7 @@ export default function CheckoutPage() {
         1
       )} kg`,
       `Bundle subtotal: INR ${totalInr}`,
+      `Transport: USD ${transportUsd} (${Math.max(5, Math.ceil(totalProductWeight))} kg billable)`,
       `Gift order: ${
         giftMode ? "Yes" : "No"
       }`,
@@ -688,14 +690,24 @@ export default function CheckoutPage() {
               </b>
             </p>
 
+            {orderLines.length > 0 && (
+              <p>
+                <span>
+                  Transport
+                </span>
+
+                <b>
+                  ${transportUsd}
+                </b>
+              </p>
+            )}
+
           </div>
 
           <p className="checkoutNote">
-            Final overseas shipping and
-            payment are confirmed with
-            our team on WhatsApp after
-            reviewing destination,
-            packing and availability.
+            Transport starts at $29 for 5 kg and adds $6 for every additional
+            kilogram. The estimate above is calculated from product weight;
+            final packing, availability and payment are confirmed on WhatsApp.
           </p>
 
           <Link
