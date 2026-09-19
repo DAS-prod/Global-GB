@@ -70,20 +70,12 @@ export default function WhatsAppButton() {
     .filter(Boolean)
     .join(", ");
 
-  const message = [
-    "Hi Godavari Basket, I need help with my Godavari Basket Abroad order.",
-    "",
-    `Destination: ${selectedCountry.name}`,
-    `Target: ${selectedBoxKg} kg`,
-    `Current bundles: ${bundleList || "Not selected yet"}`,
-    `Products: ${totalProductWeight.toFixed(1)} kg`,
-    `Shipment weight: ${totalWeight.toFixed(1)} kg`,
-    `Transport estimate: USD ${transportUsd}`,
-  ].join("\n");
+const message =
+  "Hi Godavari Basket, I would like to know more about your abroad orders.";
 
-  const whatsappUrl =
-    `https://wa.me/${number}` +
-    `?text=${encodeURIComponent(message)}`;
+const whatsappUrl =
+  `https://wa.me/${number}` +
+  `?text=${encodeURIComponent(message)}`;
 
   if (!mounted) {
     return null;
