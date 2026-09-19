@@ -1,82 +1,191 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useMemo, useState } from "react";
+import {
+  FormEvent,
+  useMemo,
+  useState,
+} from "react";
+
 import Footer from "@/components/Footer";
 import Price from "@/components/Price";
 import { useBox } from "@/components/BoxProvider";
+import { countries } from "@/data/catalog";
 
 export default function CheckoutPage() {
   const {
     lines,
     getBundle,
+
     totalProductWeight,
     packagingWeight,
     totalWeight,
+
     totalInr,
     transportUsd,
+
     minimumReached,
     remainingToMinimum,
+
     selectedCountry,
     giftMode,
   } = useBox();
 
-  const [sending, setSending] = useState(false);
-  const [error, setError] = useState("");
+  const [sending, setSending] =
+    useState(false);
 
-  const orderLines = useMemo(() => {
-    return lines
-      .map((line) => ({
-        ...line,
-        bundle: getBundle(line.bundleId),
-      }))
-      .filter((line) => Boolean(line.bundle));
-  }, [lines, getBundle]);
+  const [error, setError] =
+    useState("");
 
-  const submit = (event: FormEvent<HTMLFormElement>) => {
+  /* ======================================================
+     ORDER LINES
+  ====================================================== */
+
+  const orderLines =
+    useMemo(() => {
+      return lines
+        .map((line) => ({
+          ...line,
+
+          bundle:
+            getBundle(
+              line.bundleId
+            ),
+        }))
+        .filter(
+          (line) =>
+            Boolean(
+              line.bundle
+            )
+        );
+    }, [
+      lines,
+      getBundle,
+    ]);
+
+  /* ======================================================
+     PRICE CALCULATION
+
+     Bundle prices are stored in INR.
+
+     Transport is calculated in USD.
+
+     We convert the USD transport amount back
+     to an INR-equivalent value so the existing
+     <Price /> component can display everything
+     in the customer's selected currency.
+
+     Example USA:
+     Subtotal = $120
+     Transport = $29
+     Total = $149
+  ====================================================== */
+
+  const usdRate =
+    countries.find(
+      (country) =>
+        country.currency ===
+        "USD"
+    )?.rate || 0.012;
+
+  const transportInrEquivalent =
+    transportUsd > 0
+      ? transportUsd /
+        usdRate
+      : 0;
+
+  const estimatedTotalInr =
+    totalInr +
+    transportInrEquivalent;
+
+  const estimatedTotalLocal =
+    estimatedTotalInr *
+    selectedCountry.rate;
+
+  const estimatedTotalText =
+    `${selectedCountry.symbol}` +
+    `${Math.round(
+      estimatedTotalLocal
+    ).toLocaleString()}`;
+
+  /* ======================================================
+     SUBMIT TO WHATSAPP
+  ====================================================== */
+
+  const submit = (
+    event: FormEvent<HTMLFormElement>
+  ) => {
     event.preventDefault();
 
     setError("");
 
-    if (!orderLines.length) {
+    /* EMPTY CART */
+
+    if (
+      !orderLines.length
+    ) {
       setError(
         "Your box is empty. Please add bundles before continuing."
       );
+
       return;
     }
 
-    if (!minimumReached) {
+    /* 5 KG MINIMUM */
+
+    if (
+      !minimumReached
+    ) {
       setError(
         `Please add ${remainingToMinimum.toFixed(
           1
         )} kg more to reach the 5 kg minimum.`
       );
+
       return;
     }
 
-    const formElement = event.currentTarget;
+    const formElement =
+      event.currentTarget;
 
     /*
-     * Let browser validate required fields.
+     * Let browser handle
+     * required-field validation.
      */
-    if (!formElement.checkValidity()) {
+
+    if (
+      !formElement.checkValidity()
+    ) {
       formElement.reportValidity();
+
       return;
     }
 
     setSending(true);
 
-    const form = new FormData(formElement);
+    const form =
+      new FormData(
+        formElement
+      );
+
+    /* ====================================================
+       CUSTOMER DETAILS
+    ==================================================== */
 
     const details = {
-      name: String(form.get("name") || "").trim(),
+      name: String(
+        form.get("name") ||
+          ""
+      ).trim(),
 
       phone: String(
-        form.get("phone") || ""
+        form.get("phone") ||
+          ""
       ).trim(),
 
       email: String(
-        form.get("email") || ""
+        form.get("email") ||
+          ""
       ).trim(),
 
       country: String(
@@ -85,100 +194,162 @@ export default function CheckoutPage() {
       ).trim(),
 
       address1: String(
-        form.get("address1") || ""
+        form.get("address1") ||
+          ""
       ).trim(),
 
       address2: String(
-        form.get("address2") || ""
+        form.get("address2") ||
+          ""
       ).trim(),
 
       city: String(
-        form.get("city") || ""
+        form.get("city") ||
+          ""
       ).trim(),
 
       state: String(
-        form.get("state") || ""
+        form.get("state") ||
+          ""
       ).trim(),
 
       postal: String(
-        form.get("postal") || ""
+        form.get("postal") ||
+          ""
       ).trim(),
 
       notes: String(
-        form.get("notes") || ""
+        form.get("notes") ||
+          ""
       ).trim(),
     };
 
-    /*
-     * Build order item list.
-     */
-    const itemsText = orderLines
-      .map((line, index) => {
-        const bundle = line.bundle!;
+    /* ====================================================
+       ITEMS FOR WHATSAPP
+    ==================================================== */
 
-        const lineWeight =
-          bundle.weightKg *
-          line.quantity;
+    const itemsText =
+      orderLines
+        .map(
+          (
+            line,
+            index
+          ) => {
+            const bundle =
+              line.bundle!;
 
-        const lineTotal =
-          bundle.priceInr *
-          line.quantity;
+            const lineWeight =
+              bundle.weightKg *
+              line.quantity;
 
-        return [
-          `${index + 1}. ${bundle.name}`,
-          `Quantity: ${line.quantity}`,
-          `Weight: ${lineWeight.toFixed(
-            1
-          )} kg`,
-          `Amount: INR ${lineTotal}`,
-          `Includes: ${
-            bundle.items.join(", ") ||
-            "As listed in catalog"
-          }`,
-        ].join("\n");
-      })
-      .join("\n\n");
+            const lineTotal =
+              bundle.priceInr *
+              line.quantity;
 
-    /*
-     * Full WhatsApp order message.
-     */
+            return [
+              `${index + 1}. ${bundle.name}`,
+
+              `Quantity: ${line.quantity}`,
+
+              `Weight: ${lineWeight.toFixed(
+                1
+              )} kg`,
+
+              `Amount: INR ${lineTotal}`,
+
+              `Includes: ${
+                bundle.items.join(
+                  ", "
+                ) ||
+                "As listed in catalog"
+              }`,
+            ].join(
+              "\n"
+            );
+          }
+        )
+        .join(
+          "\n\n"
+        );
+
+    /* ====================================================
+       WHATSAPP ORDER MESSAGE
+    ==================================================== */
+
     const message = [
       "Hi Godavari Basket! 👋",
+
       "",
+
       "I would like to continue with this Godavari Basket Abroad order.",
+
       "",
+
       "🧺 ORDER DETAILS",
+
       "",
+
       itemsText,
+
       "",
+
       "──────────────",
+
       "",
+
       `Product weight: ${totalProductWeight.toFixed(
         1
       )} kg`,
+
       `Packaging weight: ${packagingWeight.toFixed(
         1
       )} kg`,
+
       `Total shipment weight: ${totalWeight.toFixed(
         1
       )} kg`,
-      `Bundle subtotal: INR ${totalInr}`,
-      `Transport: USD ${transportUsd} (${Math.max(5, Math.ceil(totalProductWeight))} kg billable)`,
+
+      "",
+
+      `Bundle subtotal: INR ${Math.round(
+        totalInr
+      ).toLocaleString()}`,
+
+      `Transport: USD ${transportUsd}`,
+
+      `Estimated total: ${estimatedTotalText}`,
+
+      "",
+
       `Gift order: ${
-        giftMode ? "Yes" : "No"
+        giftMode
+          ? "Yes"
+          : "No"
       }`,
+
       "",
+
       "👤 CUSTOMER DETAILS",
+
       "",
+
       `Name: ${details.name}`,
+
       `WhatsApp / Mobile: ${details.phone}`,
+
       `Email: ${
-        details.email || "-"
+        details.email ||
+        "-"
       }`,
+
       `Country: ${details.country}`,
+
       "",
+
       "📍 DELIVERY ADDRESS",
+
       "",
+
       [
         details.address1,
         details.address2,
@@ -186,37 +357,52 @@ export default function CheckoutPage() {
         details.state,
         details.postal,
       ]
-        .filter(Boolean)
-        .join(", "),
-      "",
-      `Notes: ${
-        details.notes || "-"
-      }`,
-      "",
-      "Please confirm availability, final packing, overseas shipping and payment details.",
-      "",
-      "Thank you.",
-    ].join("\n");
+        .filter(
+          Boolean
+        )
+        .join(
+          ", "
+        ),
 
-    /*
-     * Use ENV number when configured.
-     *
-     * Temporary fallback prevents checkout
-     * from doing nothing when ENV isn't set.
-     */
+      "",
+
+      `Notes: ${
+        details.notes ||
+        "-"
+      }`,
+
+      "",
+
+      "Please confirm availability, final packing and payment details.",
+
+      "",
+
+      "Thank you.",
+    ].join(
+      "\n"
+    );
+
+    /* ====================================================
+       WHATSAPP NUMBER
+    ==================================================== */
+
     const rawNumber =
       process.env
         .NEXT_PUBLIC_WHATSAPP_NUMBER ||
       "919618851406";
 
-    /*
-     * Remove +, spaces, hyphens etc.
-     */
     const whatsappNumber =
-      rawNumber.replace(/\D/g, "");
+      rawNumber.replace(
+        /\D/g,
+        ""
+      );
 
-    if (!whatsappNumber) {
-      setSending(false);
+    if (
+      !whatsappNumber
+    ) {
+      setSending(
+        false
+      );
 
       setError(
         "WhatsApp checkout is temporarily unavailable. Please contact Godavari Basket directly."
@@ -232,14 +418,9 @@ export default function CheckoutPage() {
       )}`;
 
     /*
-     * More reliable than window.open().
-     *
-     * This works much better on:
-     * - iPhone Safari
-     * - Android Chrome
-     * - WhatsApp app handoff
-     * - popup-blocking browsers
+     * Reliable mobile handoff.
      */
+
     window.location.href =
       whatsappUrl;
   };
@@ -247,12 +428,13 @@ export default function CheckoutPage() {
   return (
     <main className="subPage checkoutPage">
 
-      {/* ==================================
+      {/* ==================================================
           HERO
-      =================================== */}
+      ================================================== */}
 
       <section className="checkoutHero">
         <div className="shell">
+
           <span className="eyebrow light">
             FINAL STEP
           </span>
@@ -267,27 +449,34 @@ export default function CheckoutPage() {
           </h1>
 
           <p>
-            Review your bundles, add
-            delivery details, then
-            continue securely with our
-            team on WhatsApp.
+            Review your bundles,
+            add delivery details,
+            then continue securely
+            with our team on
+            WhatsApp.
           </p>
+
         </div>
       </section>
 
-      {/* ==================================
-          CHECKOUT
-      =================================== */}
+      {/* ==================================================
+          CHECKOUT AREA
+      ================================================== */}
 
       <section className="section shell checkoutLayout">
 
+        {/* =================================================
+            LEFT
+        ================================================= */}
+
         <div className="checkoutMain">
 
-          {/* =============================
+          {/* ===============================================
               CART REVIEW
-          ============================== */}
+          =============================================== */}
 
           <div className="checkoutSectionHead">
+
             <span className="eyebrow">
               YOUR BOX
             </span>
@@ -295,17 +484,20 @@ export default function CheckoutPage() {
             <h2>
               Review your selection
             </h2>
+
           </div>
 
           {!orderLines.length ? (
             <div className="checkoutEmpty">
+
               <h3>
                 Your box is empty.
               </h3>
 
               <p>
-                Choose your Godavari
-                bundles before checkout.
+                Choose your
+                Godavari bundles
+                before checkout.
               </p>
 
               <Link
@@ -313,8 +505,12 @@ export default function CheckoutPage() {
                 href="/build"
               >
                 Build your box
-                <span>→</span>
+
+                <span>
+                  →
+                </span>
               </Link>
+
             </div>
           ) : (
             <div className="checkoutItems">
@@ -330,6 +526,7 @@ export default function CheckoutPage() {
                         line.bundleId
                       }
                     >
+
                       <img
                         src={
                           bundle.image
@@ -340,6 +537,7 @@ export default function CheckoutPage() {
                       />
 
                       <div>
+
                         <h3>
                           {
                             bundle.name
@@ -348,8 +546,13 @@ export default function CheckoutPage() {
 
                         <p>
                           {bundle.items
-                            .slice(0, 4)
-                            .join(" · ")}
+                            .slice(
+                              0,
+                              4
+                            )
+                            .join(
+                              " · "
+                            )}
                         </p>
 
                         <small>
@@ -369,6 +572,7 @@ export default function CheckoutPage() {
                           )}{" "}
                           kg
                         </small>
+
                       </div>
 
                       <strong>
@@ -379,6 +583,7 @@ export default function CheckoutPage() {
                           }
                         />
                       </strong>
+
                     </article>
                   );
                 }
@@ -387,9 +592,9 @@ export default function CheckoutPage() {
             </div>
           )}
 
-          {/* =============================
-              CUSTOMER FORM
-          ============================== */}
+          {/* ===============================================
+              CUSTOMER DETAILS FORM
+          =============================================== */}
 
           <form
             className="checkoutForm"
@@ -397,6 +602,7 @@ export default function CheckoutPage() {
           >
 
             <div className="checkoutSectionHead">
+
               <span className="eyebrow">
                 YOUR DETAILS
               </span>
@@ -407,15 +613,20 @@ export default function CheckoutPage() {
               </h2>
 
               <p>
-                We'll use these details
-                to continue the order
-                with you on WhatsApp.
+                We'll use these
+                details to continue
+                the order with you
+                on WhatsApp.
               </p>
+
             </div>
 
             <div className="formGrid">
 
+              {/* NAME */}
+
               <label>
+
                 <span>
                   Full name *
                 </span>
@@ -426,11 +637,16 @@ export default function CheckoutPage() {
                   autoComplete="name"
                   placeholder="Your full name"
                 />
+
               </label>
 
+              {/* PHONE */}
+
               <label>
+
                 <span>
-                  WhatsApp / Mobile *
+                  WhatsApp /
+                  Mobile *
                 </span>
 
                 <input
@@ -440,9 +656,13 @@ export default function CheckoutPage() {
                   inputMode="tel"
                   placeholder="Country code + number"
                 />
+
               </label>
 
+              {/* EMAIL */}
+
               <label className="full">
+
                 <span>
                   Email
                 </span>
@@ -453,9 +673,13 @@ export default function CheckoutPage() {
                   autoComplete="email"
                   placeholder="you@example.com"
                 />
+
               </label>
 
+              {/* COUNTRY */}
+
               <label>
+
                 <span>
                   Country *
                 </span>
@@ -468,9 +692,13 @@ export default function CheckoutPage() {
                   }
                   autoComplete="country-name"
                 />
+
               </label>
 
+              {/* POSTAL */}
+
               <label>
+
                 <span>
                   Postal / ZIP code *
                 </span>
@@ -480,9 +708,13 @@ export default function CheckoutPage() {
                   required
                   autoComplete="postal-code"
                 />
+
               </label>
 
+              {/* ADDRESS 1 */}
+
               <label className="full">
+
                 <span>
                   Address line 1 *
                 </span>
@@ -492,9 +724,13 @@ export default function CheckoutPage() {
                   required
                   autoComplete="address-line1"
                 />
+
               </label>
 
+              {/* ADDRESS 2 */}
+
               <label className="full">
+
                 <span>
                   Address line 2
                 </span>
@@ -503,9 +739,13 @@ export default function CheckoutPage() {
                   name="address2"
                   autoComplete="address-line2"
                 />
+
               </label>
 
+              {/* CITY */}
+
               <label>
+
                 <span>
                   City *
                 </span>
@@ -515,9 +755,13 @@ export default function CheckoutPage() {
                   required
                   autoComplete="address-level2"
                 />
+
               </label>
 
+              {/* STATE */}
+
               <label>
+
                 <span>
                   State / Region *
                 </span>
@@ -527,9 +771,13 @@ export default function CheckoutPage() {
                   required
                   autoComplete="address-level1"
                 />
+
               </label>
 
+              {/* NOTES */}
+
               <label className="full">
+
                 <span>
                   Order notes
                 </span>
@@ -539,11 +787,14 @@ export default function CheckoutPage() {
                   rows={4}
                   placeholder="Anything we should know about this order?"
                 />
+
               </label>
 
             </div>
 
-            {/* ERROR */}
+            {/* =============================================
+                ERROR
+            ============================================= */}
 
             {error && (
               <p className="checkoutWarning">
@@ -551,7 +802,9 @@ export default function CheckoutPage() {
               </p>
             )}
 
-            {/* CHECKOUT BUTTON */}
+            {/* =============================================
+                WHATSAPP CHECKOUT
+            ============================================= */}
 
             <button
               className="whatsappCheckout"
@@ -562,34 +815,43 @@ export default function CheckoutPage() {
                 sending
               }
             >
+
               <span>
                 {sending
                   ? "Opening WhatsApp…"
                   : "Continue order on WhatsApp"}
               </span>
 
-              <b>→</b>
+              <b>
+                →
+              </b>
+
             </button>
 
             {!minimumReached &&
               orderLines.length >
                 0 && (
                 <p className="checkoutWarning">
+
                   Add{" "}
+
                   {remainingToMinimum.toFixed(
                     1
                   )}{" "}
-                  kg more to reach the
-                  5 kg minimum.
+
+                  kg more to reach
+                  the 5 kg minimum.
+
                 </p>
               )}
 
           </form>
+
         </div>
 
-        {/* ==================================
+        {/* =================================================
             ORDER SUMMARY
-        =================================== */}
+        ================================================= */}
 
         <aside className="checkoutSummary">
 
@@ -602,6 +864,8 @@ export default function CheckoutPage() {
           </h3>
 
           <div className="summaryRows">
+
+            {/* BUNDLE COUNT */}
 
             <p>
               <span>
@@ -621,6 +885,8 @@ export default function CheckoutPage() {
               </b>
             </p>
 
+            {/* PRODUCT WEIGHT */}
+
             <p>
               <span>
                 Products
@@ -633,6 +899,8 @@ export default function CheckoutPage() {
                 kg
               </b>
             </p>
+
+            {/* PACKAGING */}
 
             <p>
               <span>
@@ -647,6 +915,8 @@ export default function CheckoutPage() {
               </b>
             </p>
 
+            {/* SHIPMENT WEIGHT */}
+
             <p>
               <span>
                 Shipment weight
@@ -660,23 +930,12 @@ export default function CheckoutPage() {
               </b>
             </p>
 
-            <p>
-              <span>
-                Minimum
-              </span>
+            {/*
+              MINIMUM / REACHED ROW
+              REMOVED FROM SUMMARY
+            */}
 
-              <b
-                className={
-                  minimumReached
-                    ? "good"
-                    : "warn"
-                }
-              >
-                {minimumReached
-                  ? "Reached ✓"
-                  : "5 kg"}
-              </b>
-            </p>
+            {/* BUNDLE SUBTOTAL */}
 
             <p>
               <span>
@@ -685,30 +944,121 @@ export default function CheckoutPage() {
 
               <b>
                 <Price
-                  inr={totalInr}
+                  inr={
+                    totalInr
+                  }
                 />
               </b>
             </p>
 
-            {orderLines.length > 0 && (
+            {/* TRANSPORT */}
+
+            {orderLines.length >
+              0 && (
               <p>
                 <span>
                   Transport
                 </span>
 
                 <b>
-                  ${transportUsd}
+                  <Price
+                    inr={
+                      transportInrEquivalent
+                    }
+                  />
                 </b>
+              </p>
+            )}
+
+            {/* =============================================
+                GRAND TOTAL
+            ============================================= */}
+
+            {orderLines.length >
+              0 && (
+              <p
+                style={{
+                  marginTop:
+                    "8px",
+
+                  paddingTop:
+                    "16px",
+
+                  paddingBottom:
+                    "4px",
+
+                  borderTop:
+                    "2px solid #d8c18a",
+
+                  borderBottom:
+                    "none",
+
+                  alignItems:
+                    "center",
+                }}
+              >
+
+                <span
+                  style={{
+                    fontWeight:
+                      800,
+
+                    fontSize:
+                      "11px",
+
+                    letterSpacing:
+                      "0.08em",
+
+                    color:
+                      "#173923",
+                  }}
+                >
+                  TOTAL
+                </span>
+
+                <b
+                  style={{
+                    fontFamily:
+                      '"Cormorant Garamond", Georgia, serif',
+
+                    fontSize:
+                      "24px",
+
+                    lineHeight:
+                      1,
+
+                    color:
+                      "#173923",
+                  }}
+                >
+                  <Price
+                    inr={
+                      estimatedTotalInr
+                    }
+                  />
+                </b>
+
               </p>
             )}
 
           </div>
 
+          {/* ===============================================
+              TRANSPORT NOTE
+          =============================================== */}
+
           <p className="checkoutNote">
-            Transport starts at $29 for 5 kg and adds $6 for every additional
-            kilogram. The estimate above is calculated from product weight;
-            final packing, availability and payment are confirmed on WhatsApp.
+            Transport is calculated
+            from the product weight.
+            Final packing,
+            availability and payment
+            are confirmed with our
+            team on WhatsApp.
           </p>
+
+          {/* ===============================================
+              CONTINUE SHOPPING
+          =============================================== */}
 
           <Link
             className="checkoutEdit"
@@ -718,9 +1068,11 @@ export default function CheckoutPage() {
           </Link>
 
         </aside>
+
       </section>
 
       <Footer />
+
     </main>
   );
 }
