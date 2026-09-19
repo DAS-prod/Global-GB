@@ -28,14 +28,19 @@ export default function Providers({
 
         {children}
 
+        {/* CART / BOX DRAWER */}
         <BoxDrawer />
 
+        {/* FLOATING BOX / CART BUTTON */}
         <FloatingBox />
 
+        {/* WHATSAPP ORDER BUTTON */}
         <WhatsAppButton />
 
+        {/* FLOATING WHATSAPP ICON */}
         <FloatingWhatsApp />
 
+        {/* ADD / REMOVE NOTIFICATIONS */}
         <Toast />
       </BoxProvider>
     </CatalogProvider>
