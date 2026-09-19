@@ -2,14 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { usePathname } from "next/navigation";
 import { useBox } from "./BoxProvider";
 
 function WhatsAppIcon() {
   return (
     <svg
       viewBox="0 0 32 32"
-      width="27"
-      height="27"
+      width="26"
+      height="26"
       aria-hidden="true"
       style={{
         display: "block",
@@ -23,32 +24,12 @@ function WhatsAppIcon() {
 
 export default function WhatsAppButton() {
   const [mounted, setMounted] = useState(false);
-  const [mobile, setMobile] = useState(false);
+  const pathname = usePathname();
 
-  const {
-    lines,
-    getBundle,
-    totalProductWeight,
-    totalWeight,
-    transportUsd,
-    selectedBoxKg,
-    selectedCountry,
-  } = useBox();
+  const { drawerOpen } = useBox();
 
   useEffect(() => {
     setMounted(true);
-
-    const updateScreen = () => {
-      setMobile(window.innerWidth <= 560);
-    };
-
-    updateScreen();
-
-    window.addEventListener("resize", updateScreen);
-
-    return () => {
-      window.removeEventListener("resize", updateScreen);
-    };
   }, []);
 
   const rawNumber =
@@ -57,27 +38,28 @@ export default function WhatsAppButton() {
 
   const number = rawNumber.replace(/\D/g, "");
 
-  const bundleList = lines
-    .map((line) => {
-      const bundle = getBundle(line.bundleId);
+  const message =
+    "Hi Godavari Basket, I would like to know more about your abroad orders.";
 
-      if (!bundle) {
-        return null;
-      }
+  const whatsappUrl =
+    `https://wa.me/${number}` +
+    `?text=${encodeURIComponent(message)}`;
 
-      return `${bundle.name} x${line.quantity}`;
-    })
-    .filter(Boolean)
-    .join(", ");
+  /*
+   * Hide WhatsApp when:
+   *
+   * 1. Cart drawer is open
+   * 2. Customer is on checkout page
+   * 3. Customer is on /cart page if you add one later
+   */
+  const hideWhatsApp =
+    drawerOpen ||
+    pathname === "/checkout" ||
+    pathname?.startsWith("/checkout/") ||
+    pathname === "/cart" ||
+    pathname?.startsWith("/cart/");
 
-const message =
-  "Hi Godavari Basket, I would like to know more about your abroad orders.";
-
-const whatsappUrl =
-  `https://wa.me/${number}` +
-  `?text=${encodeURIComponent(message)}`;
-
-  if (!mounted) {
+  if (!mounted || hideWhatsApp) {
     return null;
   }
 
@@ -91,20 +73,11 @@ const whatsappUrl =
       style={{
         position: "fixed",
 
-        /*
-         * MOBILE:
-         * Godavari cart is at bottom.
-         * WhatsApp stays just above it.
-         *
-         * DESKTOP:
-         * Cart sits higher on right side,
-         * so WhatsApp stays directly above it.
-         */
-        right: mobile ? "16px" : "26px",
-        bottom: mobile ? "84px" : "162px",
+        right: "18px",
+        bottom: "92px",
 
-        width: mobile ? "48px" : "50px",
-        height: mobile ? "48px" : "50px",
+        width: "46px",
+        height: "46px",
 
         borderRadius: "50%",
 
@@ -115,11 +88,13 @@ const whatsappUrl =
         background: "#122519",
         color: "#ffffff",
 
+        border: "1px solid rgba(255,255,255,0.14)",
+
         textDecoration: "none",
 
-        boxShadow: "0 8px 22px rgba(0, 0, 0, 0.20)",
+        boxShadow: "0 8px 20px rgba(0,0,0,0.20)",
 
-        zIndex: 99999,
+        zIndex: 9998,
 
         opacity: 1,
         visibility: "visible",
@@ -131,16 +106,10 @@ const whatsappUrl =
       onMouseEnter={(event) => {
         event.currentTarget.style.transform =
           "translateY(-2px) scale(1.04)";
-
-        event.currentTarget.style.boxShadow =
-          "0 10px 26px rgba(0, 0, 0, 0.24)";
       }}
       onMouseLeave={(event) => {
         event.currentTarget.style.transform =
           "translateY(0) scale(1)";
-
-        event.currentTarget.style.boxShadow =
-          "0 8px 22px rgba(0, 0, 0, 0.20)";
       }}
     >
       <WhatsAppIcon />
