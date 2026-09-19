@@ -3,7 +3,6 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 import Providers from "./providers";
-import FloatingWhatsApp from "@/components/FloatingWhatsApp";
 
 export const metadata: Metadata = {
   title: "Godavari Basket Abroad | From Godavari, With Love",
@@ -11,7 +10,9 @@ export const metadata: Metadata = {
   description:
     "Build a premium Godavari box with authentic regional favourites and send a little piece of home across the world.",
 
-  metadataBase: new URL("https://abroad.godavaribasket.com"),
+  metadataBase: new URL(
+    "https://abroad.godavaribasket.com"
+  ),
 
   openGraph: {
     title: "Godavari Basket Abroad",
@@ -33,9 +34,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <Providers>{children}</Providers>
-
-        <FloatingWhatsApp />
+        <Providers>
+          {children}
+        </Providers>
       </body>
     </html>
   );
