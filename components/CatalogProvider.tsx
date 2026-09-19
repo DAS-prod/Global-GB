@@ -19,6 +19,7 @@ type CatalogSource =
 
 type CatalogContextValue = {
   bundles: Bundle[];
+  combos: Bundle[];
   categories: Category[];
   loading: boolean;
   source: CatalogSource;
@@ -28,7 +29,7 @@ type CatalogContextValue = {
 };
 
 const CatalogContext = createContext<CatalogContextValue | null>(null);
-const CATALOG_CACHE_KEY = "gb-abroad-catalog-v1";
+const CATALOG_CACHE_KEY = "gb-abroad-catalog-v2";
 
 function humanize(value: string) {
   return value
@@ -65,26 +66,36 @@ function deriveCategories(bundles: Bundle[]): Category[] {
   return Array.from(map.values());
 }
 
-function readCachedCatalog(): Bundle[] {
-  if (typeof window === "undefined") return [];
+type CachedCatalog = {
+  bundles: Bundle[];
+  combos: Bundle[];
+};
+
+function readCachedCatalog(): CachedCatalog {
+  if (typeof window === "undefined") return { bundles: [], combos: [] };
 
   try {
     const raw = window.localStorage.getItem(CATALOG_CACHE_KEY);
-    if (!raw) return [];
+    if (!raw) return { bundles: [], combos: [] };
+
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed?.bundles) ? parsed.bundles : [];
+
+    return {
+      bundles: Array.isArray(parsed?.bundles) ? parsed.bundles : [],
+      combos: Array.isArray(parsed?.combos) ? parsed.combos : [],
+    };
   } catch {
-    return [];
+    return { bundles: [], combos: [] };
   }
 }
 
-function writeCachedCatalog(bundles: Bundle[]) {
-  if (typeof window === "undefined" || !bundles.length) return;
+function writeCachedCatalog(bundles: Bundle[], combos: Bundle[]) {
+  if (typeof window === "undefined" || (!bundles.length && !combos.length)) return;
 
   try {
     window.localStorage.setItem(
       CATALOG_CACHE_KEY,
-      JSON.stringify({ bundles, savedAt: Date.now() })
+      JSON.stringify({ bundles, combos, savedAt: Date.now() })
     );
   } catch {
     // Storage can be unavailable in private browsers. The live catalog still works.
@@ -93,6 +104,7 @@ function writeCachedCatalog(bundles: Bundle[]) {
 
 export function CatalogProvider({ children }: { children: React.ReactNode }) {
   const [bundles, setBundles] = useState<Bundle[]>([]);
+  const [combos, setCombos] = useState<Bundle[]>([]);
   const [loading, setLoading] = useState(true);
   const [source, setSource] = useState<CatalogSource>("loading");
   const [refreshedAt, setRefreshedAt] = useState<string>();
@@ -106,13 +118,27 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
       });
 
       const data = await response.json().catch(() => ({}));
-      const incoming = Array.isArray(data?.bundles) ? (data.bundles as Bundle[]) : [];
+      const incomingBundles = Array.isArray(data?.bundles)
+        ? (data.bundles as Bundle[])
+        : [];
+      const incomingCombos = Array.isArray(data?.combos)
+        ? (data.combos as Bundle[])
+        : [];
 
-      if (incoming.length > 0) {
-        setBundles(incoming);
-        writeCachedCatalog(incoming);
-      } else if (data?.source === "google-sheet" && Number(data?.sheetRows || 0) === 0) {
+      if (incomingBundles.length > 0 || incomingCombos.length > 0) {
+        setBundles(incomingBundles);
+        setCombos(incomingCombos);
+        writeCachedCatalog(incomingBundles, incomingCombos);
+      } else if (
+        data?.source === "google-sheet" &&
+        Number(data?.sheetRows || 0) === 0
+      ) {
         setBundles([]);
+        setCombos([]);
+      } else if (data?.source === "google-sheet") {
+        // The sheet loaded successfully but may intentionally contain only one type.
+        setBundles(incomingBundles);
+        setCombos(incomingCombos);
       }
 
       setSource(
@@ -125,7 +151,14 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
       setRefreshedAt(data?.refreshedAt);
       setError(data?.error);
 
-      if (!response.ok && !incoming.length && !readCachedCatalog().length) {
+      const cached = readCachedCatalog();
+      if (
+        !response.ok &&
+        !incomingBundles.length &&
+        !incomingCombos.length &&
+        !cached.bundles.length &&
+        !cached.combos.length
+      ) {
         throw new Error(data?.error || "Unable to load catalog");
       }
     } catch (err) {
@@ -142,8 +175,10 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const cached = readCachedCatalog();
-    if (cached.length) {
-      setBundles(cached);
+
+    if (cached.bundles.length || cached.combos.length) {
+      setBundles(cached.bundles);
+      setCombos(cached.combos);
       setSource("cache");
     }
 
@@ -168,9 +203,19 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
   }, [refreshCatalog]);
 
   const categories = useMemo(() => deriveCategories(bundles), [bundles]);
+
   const value = useMemo(
-    () => ({ bundles, categories, loading, source, refreshedAt, error, refreshCatalog }),
-    [bundles, categories, loading, source, refreshedAt, error, refreshCatalog]
+    () => ({
+      bundles,
+      combos,
+      categories,
+      loading,
+      source,
+      refreshedAt,
+      error,
+      refreshCatalog,
+    }),
+    [bundles, combos, categories, loading, source, refreshedAt, error, refreshCatalog]
   );
 
   return <CatalogContext.Provider value={value}>{children}</CatalogContext.Provider>;
