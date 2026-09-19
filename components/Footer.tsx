@@ -30,7 +30,7 @@ export default function Footer() {
           <div><strong>GODAVARI BASKET</strong><small>ABROAD · FROM GODAVARI, WITH LOVE.</small><p>The overseas storefront of Godavari Basket—bringing familiar Godavari flavours, traditions and memories together in one thoughtfully built box.</p><a className="parentStoreLink" href={parentSite} target="_blank" rel="noreferrer">Visit Godavari Basket India ↗</a></div>
         </div>
 
-        <div className="footerLinks"><h3>SHOP</h3><Link href="/build">Build Your Box</Link><Link href="/bundles">All Bundles</Link><Link href="/gifting">Gifting</Link><Link href="/about">Our Godavari</Link></div>
+        <div className="footerLinks"><h3>SHOP</h3><Link href="/build">Build Your Box</Link><Link href="/bundles">All Bundles</Link><Link href="/combos">Combos</Link><Link href="/about">Our Godavari</Link></div>
 
         <div className="footerLinks"><h3>HELP</h3><Link href="/checkout">Checkout</Link><Link href="/build">5 kg+ Orders</Link><Link href="/about">About Us</Link><a href={parentSite} target="_blank" rel="noreferrer">India Store ↗</a></div>
 
