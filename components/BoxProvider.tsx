@@ -1,10 +1,23 @@
 "use client";
 
-import { Bundle, countries, PACKAGING_WEIGHT_KG } from "@/data/catalog";
+import {
+  Bundle,
+  calculateTransportUsd,
+  countries,
+  PACKAGING_WEIGHT_KG,
+} from "@/data/catalog";
 import { useCatalog } from "./CatalogProvider";
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 type CartLine = { bundleId: string; quantity: number };
+
 type BoxContextValue = {
   lines: CartLine[];
   selectedBoxKg: number;
@@ -16,6 +29,7 @@ type BoxContextValue = {
   packagingWeight: number;
   totalWeight: number;
   totalInr: number;
+  transportUsd: number;
   itemCount: number;
   minimumReached: boolean;
   remainingToMinimum: number;
@@ -37,7 +51,7 @@ const BoxContext = createContext<BoxContextValue | null>(null);
 const STORAGE_KEY = "gb-abroad-builder-v1";
 
 export function BoxProvider({ children }: { children: React.ReactNode }) {
-  const { bundles } = useCatalog();
+  const { bundles, combos } = useCatalog();
   const [lines, setLines] = useState<CartLine[]>([]);
   const [selectedBoxKg, setSelectedBoxKg] = useState(10);
   const [countryCode, setCountryCode] = useState("US");
@@ -46,6 +60,8 @@ export function BoxProvider({ children }: { children: React.ReactNode }) {
   const [toastMessage, setToastMessage] = useState("");
   const [hydrated, setHydrated] = useState(false);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const allCatalogItems = useMemo(() => [...bundles, ...combos], [bundles, combos]);
 
   const showToast = (message: string) => {
     setToastMessage(message);
@@ -64,49 +80,92 @@ export function BoxProvider({ children }: { children: React.ReactNode }) {
         setGiftMode(Boolean(saved.giftMode));
       }
     } catch {}
+
     setHydrated(true);
-    return () => { if (toastTimer.current) clearTimeout(toastTimer.current); };
+
+    return () => {
+      if (toastTimer.current) clearTimeout(toastTimer.current);
+    };
   }, []);
 
   useEffect(() => {
     if (!hydrated) return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ lines, selectedBoxKg, countryCode, giftMode }));
+
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ lines, selectedBoxKg, countryCode, giftMode })
+    );
   }, [lines, selectedBoxKg, countryCode, giftMode, hydrated]);
 
-  const getBundle = (id: string) => bundles.find((bundle) => bundle.id === id);
-  const getQuantity = (id: string) => lines.find((line) => line.bundleId === id)?.quantity || 0;
+  const getBundle = (id: string) =>
+    allCatalogItems.find((catalogItem) => catalogItem.id === id);
+
+  const getQuantity = (id: string) =>
+    lines.find((line) => line.bundleId === id)?.quantity || 0;
 
   const totalProductWeight = useMemo(
-    () => lines.reduce((sum, line) => sum + (getBundle(line.bundleId)?.weightKg || 0) * line.quantity, 0),
-    [lines, bundles]
+    () =>
+      lines.reduce(
+        (sum, line) => sum + (getBundle(line.bundleId)?.weightKg || 0) * line.quantity,
+        0
+      ),
+    [lines, allCatalogItems]
   );
+
   const packagingWeight = lines.length ? PACKAGING_WEIGHT_KG : 0;
   const totalWeight = Number((totalProductWeight + packagingWeight).toFixed(2));
+
   const totalInr = useMemo(
-    () => lines.reduce((sum, line) => sum + (getBundle(line.bundleId)?.priceInr || 0) * line.quantity, 0),
-    [lines, bundles]
+    () =>
+      lines.reduce(
+        (sum, line) => sum + (getBundle(line.bundleId)?.priceInr || 0) * line.quantity,
+        0
+      ),
+    [lines, allCatalogItems]
   );
+
+  const transportUsd = useMemo(
+    () => calculateTransportUsd(totalProductWeight),
+    [totalProductWeight]
+  );
+
   const itemCount = lines.reduce((sum, line) => sum + line.quantity, 0);
   const minimumReached = totalWeight >= 5;
   const remainingToMinimum = Math.max(0, Number((5 - totalWeight).toFixed(2)));
-  const selectedCountry = countries.find((country) => country.code === countryCode) || countries[0];
+  const selectedCountry =
+    countries.find((country) => country.code === countryCode) || countries[0];
 
   const addBundle = (bundleId: string) => {
     const bundle = getBundle(bundleId);
+
     setLines((current) => {
       const existing = current.find((line) => line.bundleId === bundleId);
+
       return existing
-        ? current.map((line) => line.bundleId === bundleId ? { ...line, quantity: line.quantity + 1 } : line)
+        ? current.map((line) =>
+            line.bundleId === bundleId
+              ? { ...line, quantity: line.quantity + 1 }
+              : line
+          )
         : [...current, { bundleId, quantity: 1 }];
     });
+
     showToast(bundle ? `${bundle.name} added to your box` : "Added to your Godavari Box");
   };
 
   const decrementBundle = (bundleId: string) => {
     const bundle = getBundle(bundleId);
-    setLines((current) => current
-      .map((line) => line.bundleId === bundleId ? { ...line, quantity: line.quantity - 1 } : line)
-      .filter((line) => line.quantity > 0));
+
+    setLines((current) =>
+      current
+        .map((line) =>
+          line.bundleId === bundleId
+            ? { ...line, quantity: line.quantity - 1 }
+            : line
+        )
+        .filter((line) => line.quantity > 0)
+    );
+
     if (bundle) showToast(`${bundle.name} updated`);
   };
 
@@ -129,13 +188,36 @@ export function BoxProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <BoxContext.Provider value={{
-      lines, selectedBoxKg, countryCode, giftMode, drawerOpen, toastMessage,
-      totalProductWeight, packagingWeight, totalWeight, totalInr, itemCount,
-      minimumReached, remainingToMinimum, selectedCountry,
-      setSelectedBoxKg, setCountryCode, setGiftMode, setDrawerOpen,
-      addBundle, removeBundle, decrementBundle, clearBox, replaceBox, getBundle, getQuantity
-    }}>
+    <BoxContext.Provider
+      value={{
+        lines,
+        selectedBoxKg,
+        countryCode,
+        giftMode,
+        drawerOpen,
+        toastMessage,
+        totalProductWeight,
+        packagingWeight,
+        totalWeight,
+        totalInr,
+        transportUsd,
+        itemCount,
+        minimumReached,
+        remainingToMinimum,
+        selectedCountry,
+        setSelectedBoxKg,
+        setCountryCode,
+        setGiftMode,
+        setDrawerOpen,
+        addBundle,
+        removeBundle,
+        decrementBundle,
+        clearBox,
+        replaceBox,
+        getBundle,
+        getQuantity,
+      }}
+    >
       {children}
     </BoxContext.Provider>
   );
