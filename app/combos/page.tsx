@@ -65,26 +65,6 @@ export default function CombosPage() {
             </div>
           </div>
 
-          {/* COMBO SIZE SELECTOR */}
-          <aside className={styles.heroPanel}>
-            <small>CHOOSE YOUR COMBO SIZE</small>
-
-            <div className={styles.sizeStack}>
-              {COMBO_SIZES.map((size) => (
-                <a
-                  className={styles.sizeRow}
-                  href={`#combo-${size}kg`}
-                  key={size}
-                >
-                  <b>{size} KG</b>
-
-                  <span>
-                    Ready-made combo packs
-                  </span>
-                </a>
-              ))}
-            </div>
-          </aside>
         </div>
       </section>
 

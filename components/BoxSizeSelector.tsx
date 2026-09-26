@@ -7,7 +7,7 @@ import { useBox } from "./BoxProvider";
 export default function BoxSizeSelector() {
   const router = useRouter();
   const pathname = usePathname();
-  const { selectedBoxKg, setSelectedBoxKg } = useBox();
+  const { selectedBoxKg, chooseBoxWeight } = useBox();
 
   const scrollToCatalog = () => {
     // On the Build page the catalog may still be hydrating from the Google Sheet.
@@ -23,7 +23,7 @@ export default function BoxSizeSelector() {
   };
 
   const selectBox = (kg: number) => {
-    setSelectedBoxKg(kg);
+    chooseBoxWeight(kg);
 
     if (pathname !== "/build") {
       // Do not use a hash here. Browsers can jump to #catalog before the async

@@ -4,7 +4,7 @@ This build applies the approved mobile-first direction to the real Next.js proje
 
 ## Included
 
-- 300 g packaging is counted once per non-empty order in shipment weight.
+- 500 g packaging is counted once per non-empty order in shipment weight.
 - Build Your Box selection now navigates and scrolls reliably to the catalog.
 - Mobile catalog keeps two bundle cards side by side while making text and controls readable.
 - Bundle cards show contents, weight, price, quantity controls, a pairing cue, and a bundle quick-view sheet.

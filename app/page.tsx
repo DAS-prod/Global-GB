@@ -72,6 +72,10 @@ export default function Home() {
                 <span>→</span>
               </Link>
 
+              <Link className="goldButton" href="/combos">
+                Explore combos <span>→</span>
+              </Link>
+
               <BuildForMe />
             </div>
 
@@ -406,9 +410,9 @@ export default function Home() {
           <div className="centerCta">
             <Link
               className="creamButton"
-              href="/build"
+              href="/catalog"
             >
-              Explore the full catalog
+              Explore add-ons
               <span>→</span>
             </Link>
           </div>

@@ -10,7 +10,6 @@ import {
 import Footer from "@/components/Footer";
 import Price from "@/components/Price";
 import { useBox } from "@/components/BoxProvider";
-import { countries } from "@/data/catalog";
 
 export default function CheckoutPage() {
   const {
@@ -22,7 +21,6 @@ export default function CheckoutPage() {
     totalWeight,
 
     totalInr,
-    transportUsd,
 
     minimumReached,
     remainingToMinimum,
@@ -62,51 +60,6 @@ export default function CheckoutPage() {
       lines,
       getBundle,
     ]);
-
-  /* ======================================================
-     PRICE CALCULATION
-
-     Bundle prices are stored in INR.
-
-     Transport is calculated in USD.
-
-     We convert the USD transport amount back
-     to an INR-equivalent value so the existing
-     <Price /> component can display everything
-     in the customer's selected currency.
-
-     Example USA:
-     Subtotal = $120
-     Transport = $29
-     Total = $149
-  ====================================================== */
-
-  const usdRate =
-    countries.find(
-      (country) =>
-        country.currency ===
-        "USD"
-    )?.rate || 0.012;
-
-  const transportInrEquivalent =
-    transportUsd > 0
-      ? transportUsd /
-        usdRate
-      : 0;
-
-  const estimatedTotalInr =
-    totalInr +
-    transportInrEquivalent;
-
-  const estimatedTotalLocal =
-    estimatedTotalInr *
-    selectedCountry.rate;
-
-  const estimatedTotalText =
-    `${selectedCountry.symbol}` +
-    `${Math.round(
-      estimatedTotalLocal
-    ).toLocaleString()}`;
 
   /* ======================================================
      SUBMIT TO WHATSAPP
@@ -315,9 +268,9 @@ export default function CheckoutPage() {
         totalInr
       ).toLocaleString()}`,
 
-      `Transport: USD ${transportUsd}`,
+      "Transport: Please confirm on WhatsApp",
 
-      `Estimated total: ${estimatedTotalText}`,
+      "Final total: Please confirm on WhatsApp",
 
       "",
 
@@ -951,93 +904,10 @@ export default function CheckoutPage() {
               </b>
             </p>
 
-            {/* TRANSPORT */}
-
-            {orderLines.length >
-              0 && (
+            {orderLines.length > 0 && (
               <p>
-                <span>
-                  Transport
-                </span>
-
-                <b>
-                  <Price
-                    inr={
-                      transportInrEquivalent
-                    }
-                  />
-                </b>
-              </p>
-            )}
-
-            {/* =============================================
-                GRAND TOTAL
-            ============================================= */}
-
-            {orderLines.length >
-              0 && (
-              <p
-                style={{
-                  marginTop:
-                    "8px",
-
-                  paddingTop:
-                    "16px",
-
-                  paddingBottom:
-                    "4px",
-
-                  borderTop:
-                    "2px solid #d8c18a",
-
-                  borderBottom:
-                    "none",
-
-                  alignItems:
-                    "center",
-                }}
-              >
-
-                <span
-                  style={{
-                    fontWeight:
-                      800,
-
-                    fontSize:
-                      "11px",
-
-                    letterSpacing:
-                      "0.08em",
-
-                    color:
-                      "#173923",
-                  }}
-                >
-                  TOTAL
-                </span>
-
-                <b
-                  style={{
-                    fontFamily:
-                      '"Cormorant Garamond", Georgia, serif',
-
-                    fontSize:
-                      "24px",
-
-                    lineHeight:
-                      1,
-
-                    color:
-                      "#173923",
-                  }}
-                >
-                  <Price
-                    inr={
-                      estimatedTotalInr
-                    }
-                  />
-                </b>
-
+                <span>Transport</span>
+                <b>Confirmed on WhatsApp</b>
               </p>
             )}
 
@@ -1048,12 +918,8 @@ export default function CheckoutPage() {
           =============================================== */}
 
           <p className="checkoutNote">
-            Transport is calculated
-            from the product weight.
-            Final packing,
-            availability and payment
-            are confirmed with our
-            team on WhatsApp.
+            Transport charges, final packing, availability and payment
+            will be confirmed with you on WhatsApp.
           </p>
 
           {/* ===============================================

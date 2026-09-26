@@ -6,7 +6,7 @@ export const revalidate = 0;
 export const runtime = "nodejs";
 
 type SheetRow = Record<string, string>;
-type CatalogType = "bundle" | "combo";
+type CatalogType = "product" | "bundle" | "combo";
 
 /* -------------------------------------------------------
    CSV PARSER
@@ -561,10 +561,41 @@ function rowToCatalogItem(
       ]
     );
 
-  const weightKg =
-    parseWeightKg(
-      rawWeight
+  const sizeLabel =
+    row.size?.trim() ||
+    rawWeight;
+
+  const explicitShippingWeight =
+    firstValue(
+      row,
+      [
+        "shipping_weight_kg",
+        "product_weight_kg",
+        "weight_kg",
+        "weightkg",
+      ]
     );
+
+  const sizeHasWeightUnit =
+    /\bkg\b|kilogram|gram|\bgm?\b|\bmg\b/i.test(
+      sizeLabel
+    );
+
+  /*
+   * Individual product rows sometimes use labels such as
+   * "10 Pieces" or "1 packet" rather than a numeric weight.
+   * Use an explicit shipping_weight_kg column when present.
+   * Until that optional column is added, one catalog pack is
+   * treated as 1 kg so the existing 5 kg box flow still works.
+   */
+  const weightKg =
+    forcedType === "product"
+      ? explicitShippingWeight
+        ? parseWeightKg(explicitShippingWeight)
+        : sizeHasWeightUnit
+          ? parseWeightKg(sizeLabel)
+          : 1
+      : parseWeightKg(rawWeight);
 
   if (
     weightKg <= 0
@@ -669,11 +700,16 @@ function rowToCatalogItem(
     ) ||
     "/images/brand/logo.webp";
 
-  const id =
+  const sourceId =
     row.id?.trim() ||
-    `${forcedType}-${slugify(
+    `${slugify(
       name
     )}-${index + 1}`;
+
+  const id =
+    forcedType === "product"
+      ? `product-${sourceId}`
+      : sourceId;
 
   return {
     id,
@@ -704,6 +740,10 @@ function rowToCatalogItem(
 
     weightKg,
 
+    sizeLabel:
+      sizeLabel ||
+      `${weightKg} kg`,
+
     priceInr,
 
     image,
@@ -732,6 +772,12 @@ function rowToCatalogItem(
 ------------------------------------------------------- */
 
 export async function GET() {
+  const catalogSheetUrl =
+    process.env
+      .ABROAD_CATALOG_SHEET_URL
+      ?.trim() ||
+    "";
+
   /*
    * NORMAL BUNDLES SHEET
    *
@@ -763,11 +809,14 @@ export async function GET() {
     "";
 
   if (
+    !catalogSheetUrl &&
     !bundlesSheetUrl &&
     !combosSheetUrl
   ) {
     return NextResponse.json(
       {
+        products: [],
+
         bundles: [],
 
         combos: [],
@@ -802,6 +851,9 @@ export async function GET() {
   let bundleRows:
     SheetRow[] = [];
 
+  let productRows:
+    SheetRow[] = [];
+
   let comboRows:
     SheetRow[] = [];
 
@@ -810,6 +862,35 @@ export async function GET() {
 
   let loadedSheets =
     0;
+
+  /* ---------------------------
+     LOAD PRODUCT CATALOG SHEET
+  --------------------------- */
+
+  if (
+    catalogSheetUrl
+  ) {
+    try {
+      productRows =
+        await fetchSheetRows(
+          catalogSheetUrl,
+          "Product catalog"
+        );
+
+      loadedSheets += 1;
+    } catch (error) {
+      console.error(
+        "Product Catalog Sheet error:",
+        error
+      );
+
+      errors.push(
+        error instanceof Error
+          ? error.message
+          : "Unable to load Product Catalog Sheet."
+      );
+    }
+  }
 
   /* ---------------------------
      LOAD BUNDLES SHEET
@@ -884,6 +965,8 @@ export async function GET() {
   ) {
     return NextResponse.json(
       {
+        products: [],
+
         bundles: [],
 
         combos: [],
@@ -897,6 +980,9 @@ export async function GET() {
         count: 0,
 
         comboCount: 0,
+
+        productSheetRows:
+          0,
 
         bundleSheetRows:
           0,
@@ -942,6 +1028,33 @@ export async function GET() {
             index,
             "bundle",
             "Bundles"
+          )
+      )
+      .filter(
+        (
+          item
+        ): item is Bundle =>
+          Boolean(
+            item
+          )
+      );
+
+  /* ---------------------------
+     BUILD INDIVIDUAL PRODUCTS
+  --------------------------- */
+
+  const products =
+    productRows
+      .map(
+        (
+          row,
+          index
+        ) =>
+          rowToCatalogItem(
+            row,
+            index,
+            "product",
+            "Product catalog"
           )
       )
       .filter(
@@ -1008,6 +1121,8 @@ export async function GET() {
 
   return NextResponse.json(
     {
+      products,
+
       bundles,
 
       combos,
@@ -1021,8 +1136,14 @@ export async function GET() {
       count:
         bundles.length,
 
+      productCount:
+        products.length,
+
       comboCount:
         combos.length,
+
+      productSheetRows:
+        productRows.length,
 
       bundleSheetRows:
         bundleRows.length,
@@ -1031,6 +1152,7 @@ export async function GET() {
         comboRows.length,
 
       sheetRows:
+        productRows.length +
         bundleRows.length +
         comboRows.length,
 

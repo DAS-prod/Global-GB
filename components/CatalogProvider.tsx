@@ -18,6 +18,7 @@ type CatalogSource =
   | "error";
 
 type CatalogContextValue = {
+  products: Bundle[];
   bundles: Bundle[];
   combos: Bundle[];
   categories: Category[];
@@ -67,35 +68,37 @@ function deriveCategories(bundles: Bundle[]): Category[] {
 }
 
 type CachedCatalog = {
+  products: Bundle[];
   bundles: Bundle[];
   combos: Bundle[];
 };
 
 function readCachedCatalog(): CachedCatalog {
-  if (typeof window === "undefined") return { bundles: [], combos: [] };
+  if (typeof window === "undefined") return { products: [], bundles: [], combos: [] };
 
   try {
     const raw = window.localStorage.getItem(CATALOG_CACHE_KEY);
-    if (!raw) return { bundles: [], combos: [] };
+    if (!raw) return { products: [], bundles: [], combos: [] };
 
     const parsed = JSON.parse(raw);
 
     return {
+      products: Array.isArray(parsed?.products) ? parsed.products : [],
       bundles: Array.isArray(parsed?.bundles) ? parsed.bundles : [],
       combos: Array.isArray(parsed?.combos) ? parsed.combos : [],
     };
   } catch {
-    return { bundles: [], combos: [] };
+    return { products: [], bundles: [], combos: [] };
   }
 }
 
-function writeCachedCatalog(bundles: Bundle[], combos: Bundle[]) {
-  if (typeof window === "undefined" || (!bundles.length && !combos.length)) return;
+function writeCachedCatalog(products: Bundle[], bundles: Bundle[], combos: Bundle[]) {
+  if (typeof window === "undefined" || (!products.length && !bundles.length && !combos.length)) return;
 
   try {
     window.localStorage.setItem(
       CATALOG_CACHE_KEY,
-      JSON.stringify({ bundles, combos, savedAt: Date.now() })
+      JSON.stringify({ products, bundles, combos, savedAt: Date.now() })
     );
   } catch {
     // Storage can be unavailable in private browsers. The live catalog still works.
@@ -103,6 +106,7 @@ function writeCachedCatalog(bundles: Bundle[], combos: Bundle[]) {
 }
 
 export function CatalogProvider({ children }: { children: React.ReactNode }) {
+  const [products, setProducts] = useState<Bundle[]>([]);
   const [bundles, setBundles] = useState<Bundle[]>([]);
   const [combos, setCombos] = useState<Bundle[]>([]);
   const [loading, setLoading] = useState(true);
@@ -118,6 +122,9 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
       });
 
       const data = await response.json().catch(() => ({}));
+      const incomingProducts = Array.isArray(data?.products)
+        ? (data.products as Bundle[])
+        : [];
       const incomingBundles = Array.isArray(data?.bundles)
         ? (data.bundles as Bundle[])
         : [];
@@ -125,10 +132,11 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
         ? (data.combos as Bundle[])
         : [];
 
-      if (incomingBundles.length > 0 || incomingCombos.length > 0) {
+      if (incomingProducts.length > 0 || incomingBundles.length > 0 || incomingCombos.length > 0) {
+        setProducts(incomingProducts);
         setBundles(incomingBundles);
         setCombos(incomingCombos);
-        writeCachedCatalog(incomingBundles, incomingCombos);
+        writeCachedCatalog(incomingProducts, incomingBundles, incomingCombos);
       } else if (
         data?.source === "google-sheet" &&
         Number(data?.sheetRows || 0) === 0
@@ -137,6 +145,7 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
         setCombos([]);
       } else if (data?.source === "google-sheet") {
         // The sheet loaded successfully but may intentionally contain only one type.
+        setProducts(incomingProducts);
         setBundles(incomingBundles);
         setCombos(incomingCombos);
       }
@@ -176,7 +185,8 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const cached = readCachedCatalog();
 
-    if (cached.bundles.length || cached.combos.length) {
+    if (cached.products.length || cached.bundles.length || cached.combos.length) {
+      setProducts(cached.products);
       setBundles(cached.bundles);
       setCombos(cached.combos);
       setSource("cache");
@@ -206,6 +216,7 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo(
     () => ({
+      products,
       bundles,
       combos,
       categories,
@@ -215,7 +226,7 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
       error,
       refreshCatalog,
     }),
-    [bundles, combos, categories, loading, source, refreshedAt, error, refreshCatalog]
+    [products, bundles, combos, categories, loading, source, refreshedAt, error, refreshCatalog]
   );
 
   return <CatalogContext.Provider value={value}>{children}</CatalogContext.Provider>;

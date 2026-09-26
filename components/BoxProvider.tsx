@@ -2,7 +2,6 @@
 
 import {
   Bundle,
-  calculateTransportUsd,
   countries,
   PACKAGING_WEIGHT_KG,
 } from "@/data/catalog";
@@ -28,6 +27,10 @@ type BoxContextValue = {
 
   selectedBoxKg: number;
 
+  boxWeightChosen: boolean;
+
+  chooseBoxWeight: (kg: number) => void;
+
   countryCode: string;
 
   giftMode: boolean;
@@ -44,7 +47,6 @@ type BoxContextValue = {
 
   totalInr: number;
 
-  transportUsd: number;
 
   itemCount: number;
 
@@ -90,6 +92,10 @@ const SSR_BOX_FALLBACK: BoxContextValue = {
 
   selectedBoxKg: 10,
 
+  boxWeightChosen: false,
+
+  chooseBoxWeight: noop,
+
   countryCode: "US",
 
   giftMode: false,
@@ -106,7 +112,6 @@ const SSR_BOX_FALLBACK: BoxContextValue = {
 
   totalInr: 0,
 
-  transportUsd: 0,
 
   itemCount: 0,
 
@@ -145,6 +150,7 @@ export function BoxProvider({
   children: React.ReactNode;
 }) {
   const {
+    products,
     bundles,
     combos,
   } = useCatalog();
@@ -158,6 +164,13 @@ export function BoxProvider({
     selectedBoxKg,
     setSelectedBoxKg,
   ] = useState(10);
+
+  const [boxWeightChosen, setBoxWeightChosen] = useState(false);
+
+  const chooseBoxWeight = (kg: number) => {
+    setSelectedBoxKg(kg);
+    setBoxWeightChosen(true);
+  };
 
   const [
     countryCode,
@@ -199,10 +212,12 @@ export function BoxProvider({
   const allCatalogItems =
     useMemo(
       () => [
+        ...products,
         ...bundles,
         ...combos,
       ],
       [
+        products,
         bundles,
         combos,
       ]
@@ -438,38 +453,6 @@ export function BoxProvider({
       lines,
       allCatalogItems,
     ]);
-
-  /*
-   * TRANSPORT RULE
-   *
-   * 5KG  = $29
-   * 6KG  = $35
-   * 7KG  = $41
-   * 8KG  = $47
-   * 9KG  = $53
-   * 10KG = $59
-   *
-   * Every extra started KG
-   * after 5KG = +$6.
-   *
-   * Important:
-   * shipping uses product weight,
-   * NOT packaging weight.
-   *
-   * Therefore a real 5KG combo
-   * remains $29 even if packaging
-   * makes displayed total 5.3KG.
-   */
-  const transportUsd =
-    useMemo(
-      () =>
-        calculateTransportUsd(
-          totalProductWeight
-        ),
-      [
-        totalProductWeight,
-      ]
-    );
 
   const itemCount =
     lines.reduce(
@@ -718,6 +701,10 @@ export function BoxProvider({
 
       selectedBoxKg,
 
+      boxWeightChosen,
+
+      chooseBoxWeight,
+
       countryCode,
 
       giftMode,
@@ -734,7 +721,6 @@ export function BoxProvider({
 
       totalInr,
 
-      transportUsd,
 
       itemCount,
 

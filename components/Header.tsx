@@ -25,6 +25,7 @@ export default function Header() {
     ["/build", "Build Your Box"],
     ["/bundles", "Bundles"],
     ["/combos", "Combos"],
+    ["/catalog", "Add-ons"],
     ["/about", "Our Godavari"],
   ];
 

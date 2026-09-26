@@ -1,9 +1,12 @@
 "use client";
 
 import { useBox } from "./BoxProvider";
+import { usePathname } from "next/navigation";
 
 export default function FloatingBox() {
-  const { totalWeight, selectedBoxKg, itemCount, minimumReached, setDrawerOpen } = useBox();
+  const { totalWeight, selectedBoxKg, boxWeightChosen, itemCount, minimumReached, setDrawerOpen } = useBox();
+  const pathname = usePathname();
+  if (!boxWeightChosen || !["/build", "/bundles", "/catalog"].includes(pathname)) return null;
   const progress = Math.min(100, (totalWeight / Math.max(5, selectedBoxKg)) * 100);
   return (
     <button className={itemCount > 0 ? "floatingBox hasItems" : "floatingBox"} onClick={() => setDrawerOpen(true)} aria-label="View your Godavari box">

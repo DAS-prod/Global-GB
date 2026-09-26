@@ -7,7 +7,7 @@ function WhatsAppIcon() {
 }
 
 export default function WhatsAppButton() {
-  const { lines, getBundle, totalProductWeight, totalWeight, transportUsd, selectedBoxKg, selectedCountry } = useBox();
+  const { lines, getBundle, totalProductWeight, totalWeight, selectedBoxKg, selectedCountry } = useBox();
   const number = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER?.trim();
   if (!number) return null;
 
@@ -23,7 +23,7 @@ export default function WhatsAppButton() {
     `Current bundles: ${bundleList || "Not selected yet"}`,
     `Products: ${totalProductWeight.toFixed(1)} kg`,
     `Shipment weight: ${totalWeight.toFixed(1)} kg`,
-    `Transport estimate: USD ${transportUsd}`
+    "Please confirm transport charges on WhatsApp"
   ].join("\n"));
 
   return <a className="whatsapp" href={`https://wa.me/${number}?text=${text}`} target="_blank" rel="noreferrer"><b className="whatsappMark"><WhatsAppIcon /></b><span><small>Need a custom mix?</small>Godavari Concierge</span></a>;

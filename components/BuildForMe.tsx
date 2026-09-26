@@ -267,14 +267,14 @@ export default function BuildForMe() {
     }
 
     /*
-     * 300 g packaging is included in
+     * 500 g packaging is included in
      * shipment target internally.
      *
      * Example:
      *
      * 5 KG box
      * products target = ~4.7 KG
-     * packaging = 0.3 KG
+     * packaging = 0.5 KG
      *
      * Packaging is NOT displayed here.
      */
